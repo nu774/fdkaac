@@ -1,0 +1,128 @@
+/* 
+ * Copyright (C) 2013 nu774
+ * For conditions of distribution and use, see copyright notice in COPYING
+ */
+#if HAVE_CONFIG_H
+#  include "config.h"
+#endif
+#if HAVE_STDINT_H
+#  include <stdint.h>
+#endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#include <io.h>
+#include <fcntl.h>
+#include <sys/timeb.h>
+#include "compat.h"
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+typedef struct
+{
+    int newmode;
+} _startupinfo;
+
+extern
+int __wgetmainargs(int *, wchar_t ***, wchar_t ***, int, _startupinfo *);
+
+int64_t aacenc_timer(void)
+{
+    struct __timeb64 tv;
+    _ftime64(&tv);
+    return (int64_t)tv.time * 1000 + tv.millitm;
+}
+
+static
+int codepage_decode_wchar(int codepage, const char *from, wchar_t **to)
+{
+    int nc = MultiByteToWideChar(codepage, 0, from, -1, 0, 0);
+    if (nc == 0)
+        return -1;
+    *to = malloc(nc * sizeof(wchar_t));
+    MultiByteToWideChar(codepage, 0, from, -1, *to, nc);
+    return 0;
+}
+
+static
+int codepage_encode_wchar(int codepage, const wchar_t *from, char **to)
+{
+    int nc = WideCharToMultiByte(codepage, 0, from, -1, 0, 0, 0, 0);
+    if (nc == 0)
+        return -1;
+    *to = malloc(nc);
+    WideCharToMultiByte(codepage, 0, from, -1, *to, nc, 0, 0);
+    return 0;
+}
+
+FILE *aacenc_fopen(const char *name, const char *mode)
+{
+    wchar_t *wname, *wmode;
+    FILE *fp;
+
+    if (strcmp(name, "-") == 0) {
+        fp = (mode[0] == 'r') ? stdin : stdout;
+        _setmode(_fileno(fp), _O_BINARY);
+    } else {
+        codepage_decode_wchar(CP_UTF8, name, &wname);
+        codepage_decode_wchar(CP_UTF8, mode, &wmode);
+        fp = _wfopen(wname, wmode);
+        free(wname);
+        free(wmode);
+    }
+    return fp;
+}
+
+void aacenc_getmainargs(int *argc, char ***argv)
+{
+    int i;
+    wchar_t **wargv, **envp;
+    _startupinfo si = { 0 };
+
+    __wgetmainargs(argc, &wargv, &envp, 1, &si);
+    *argv = malloc((*argc + 1) * sizeof(char*));
+    for (i = 0; i < *argc; ++i)
+        codepage_encode_wchar(CP_UTF8, wargv[i], &(*argv)[i]);
+    (*argv)[*argc] = 0;
+}
+
+char *aacenc_to_utf8(const char *s)
+{
+    return _strdup(s);
+}
+
+int aacenc_fprintf(FILE *fp, const char *fmt, ...)
+{
+    va_list ap;
+    int cnt;
+    HANDLE fh = (HANDLE)_get_osfhandle(_fileno(fp));
+
+    if (GetFileType(fh) != FILE_TYPE_CHAR) {
+        va_start(ap, fmt);
+        cnt = vfprintf(fp, fmt, ap);
+        va_end(ap);
+    } else {
+        char *s;
+        wchar_t *ws;
+        DWORD nw;
+
+        va_start(ap, fmt);
+        cnt = _vscprintf(fmt, ap);
+        va_end(ap);
+
+        s = malloc(cnt + 1);
+        
+        va_start(ap, fmt);
+        cnt = _vsnprintf(s, cnt + 1, fmt, ap);
+        va_end(ap);
+
+        codepage_decode_wchar(CP_UTF8, s, &ws);
+        free(s);
+        fflush(fp);
+        WriteConsoleW(fh, ws, cnt, &nw, 0);
+        free(ws);
+    }
+    return cnt;
+}
+

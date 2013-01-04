@@ -1,0 +1,14 @@
+==========================================================================
+fdkaac - command line frontend encoder for libfdk-aac
+==========================================================================
+
+Prerequisites
+-------------
+You need libfdk-aac, GNU autoconf and automake, and C compiler.
+On Posix environment, you will also need GNU gettext (for iconv.m4).
+
+How to build
+------------
+$ autoreconf -i
+$ ./configure
+$ make
