@@ -1,18 +1,18 @@
 ACLOCAL_AMFLAGS = -I m4
-EXTRA_DIST = COPYING
+AUTOMAKE_OPTIONS = subdir-objects
 
 bin_PROGRAMS = fdkaac
 
 fdkaac_SOURCES = \
-	src/aacenc.c     \
-	src/lpcm.c       \
-	src/m4af.c       \
-	src/main.c       \
-	src/progress.c   \
-	src/wav_reader.c
+    src/aacenc.c     \
+    src/lpcm.c       \
+    src/m4af.c       \
+    src/main.c       \
+    src/progress.c   \
+    src/wav_reader.c
 
 fdkaac_LDADD = \
-	@LIBICONV@ -lm
+    @LIBICONV@ -lm
 
 if FDK_PLATFORM_POSIX
     fdkaac_SOURCES += \
@@ -23,3 +23,8 @@ if FDK_PLATFORM_WIN32
     fdkaac_SOURCES += \
 	src/compat_win32.c
 endif
+
+EXTRA_DIST = \
+    src/*.h      \
+    missings/*.c \
+    missings/*.h

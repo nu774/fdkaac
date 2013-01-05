@@ -10,6 +10,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE
 
 AC_PROG_CC
+AM_PROG_CC_C_O
 
 AC_CHECK_HEADERS([getopt.h sys/time.h])
 AC_CHECK_HEADERS([localcharset.h langinfo.h endian.h byteswap.h])
