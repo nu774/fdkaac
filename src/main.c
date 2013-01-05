@@ -398,8 +398,7 @@ int finalize_m4a(m4af_writer_t *m4af, const aacenc_param_ex_t *params,
 
         p += sprintf(p, PROGNAME " %s, ", fdkaac_version);
 
-        lib_info = malloc(FDK_MODULE_LAST * sizeof(LIB_INFO));
-        /* XXX: aacEncGetLibInfo() seems buggy and sometimes fails */
+        lib_info = calloc(FDK_MODULE_LAST, sizeof(LIB_INFO));
         if (aacEncGetLibInfo(lib_info) == AACENC_OK) {
             for (i = 0; i < FDK_MODULE_LAST; ++i)
                 if (lib_info[i].module_id == FDK_AACENC)
