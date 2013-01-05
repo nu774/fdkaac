@@ -34,7 +34,7 @@ inline int lrint(double x)
 #  endif
 #endif
 
-inline int pcm_clip(int n, int min_value, int max_value)
+inline double pcm_clip(double n, double min_value, double max_value)
 {
     if (n < min_value)
         return min_value;
@@ -67,7 +67,7 @@ inline int16_t pcm_quantize_s32(int32_t n)
 }
 inline int16_t pcm_quantize_f64(double v)
 {
-    return pcm_clip(lrint(v * 32768.0), -32768, 32767);
+    return (int16_t)lrint(pcm_clip(v * 32768.0, -32768.0, 32767.0));
 }
 inline int16_t pcm_s8_to_s16(int8_t n)
 {
