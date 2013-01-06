@@ -4,11 +4,30 @@ fdkaac - command line frontend encoder for libfdk-aac
 
 Prerequisites
 -------------
-You need libfdk-aac, GNU autoconf and automake, and C compiler.
-On Posix environment, you will also need GNU gettext (for iconv.m4).
+You need libfdk-aac.
+On Posix environment, you will also need GNU gettext (for iconv.m4) and
+GNU autoconf/automake.
 
-How to build
-------------
+How to build on Posix environment
+---------------------------------
+First, you need to build libfdk-aac and install on your system.
+Once you have done it, the following will do the task.
+(MinGW build can be done the same way, and doesn't require gettext/iconv)
+
 $ autoreconf -i
-$ ./configure
-$ make
+$ ./configure && make && make install
+
+How to build on MSVC
+--------------------
+First you have to extract libfdk-aac source here, so that directory tree will
+look like the following:
++- fdk-aac ---+-documentation
+|             +-libAACdec
+|             +-libAACenc
+|             :
++- m4
++- missings
++- MSVC
++- src
+
+MSVC solution for Visual Studio 2010 is under MSVC directory.
