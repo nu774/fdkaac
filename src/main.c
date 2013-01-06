@@ -409,7 +409,8 @@ int finalize_m4a(m4af_writer_t *m4af, const aacenc_param_ex_t *params,
         if (params->bitrate_mode)
             sprintf(p, "VBR mode %d", params->bitrate_mode);
         else
-            sprintf(p, "CBR %dkbps", params->bitrate / 1000);
+            sprintf(p, "CBR %dkbps",
+                    aacEncoder_GetParam(encoder, AACENC_BITRATE) / 1000);
 
         m4af_add_itmf_string_tag(m4af, M4AF_TAG_TOOL, tool_info);
     }
