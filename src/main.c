@@ -13,7 +13,14 @@
 #include <string.h>
 #include <locale.h>
 #include <errno.h>
+#include <sys/stat.h>
 #include <getopt.h>
+#if HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef _WIN32
+#include <io.h>
+#endif
 #include "compat.h"
 #include "wav_reader.h"
 #include "aacenc.h"
@@ -470,6 +477,7 @@ int main(int argc, char **argv)
     const pcm_sample_description_t *sample_format;
     int downsampled_timescale = 0;
     int frame_count = 0;
+    struct stat stb = { 0 };
 
     setlocale(LC_CTYPE, "");
     setbuf(stderr, 0);
@@ -483,7 +491,7 @@ int main(int argc, char **argv)
         goto END;
     }
 
-    if (ifp == stdin)
+    if (fstat(fileno(ifp), &stb) == 0 && (stb.st_mode & S_IFMT) != S_IFREG)
         wav_io.seek = 0;
 
     if ((wavf = wav_open(&wav_io, ifp, params.ignore_length)) == 0) {
