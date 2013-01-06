@@ -420,6 +420,37 @@ int finalize_m4a(m4af_writer_t *m4af, const aacenc_param_ex_t *params,
     return 0;
 }
 
+static
+const char *basename(const char *filename)
+{
+    char *p = strrchr(filename, '/');
+#ifdef _WIN32
+    char *q = strrchr(filename, '\\');
+    if (p < q) p = q;
+#endif
+    return p ? p + 1 : filename;
+}
+
+static
+char *generate_output_filename(const char *filename, const char *ext)
+{
+    char *p = 0;
+    size_t ext_len = strlen(ext);
+
+    if (strcmp(filename, "-") == 0) {
+        p = malloc(ext_len + 6);
+        sprintf(p, "stdin%s", ext);
+    } else {
+        const char *base = basename(filename);
+        size_t ilen = strlen(base);
+        const char *ext_org = strrchr(base, '.');
+        if (ext_org) ilen = ext_org - base;
+        p = malloc(ilen + ext_len + 1);
+        sprintf(p, "%.*s%s", ilen, base, ext);
+    }
+    return p;
+}
+
 int main(int argc, char **argv)
 {
     wav_io_context_t wav_io = { read_callback, seek_callback };
@@ -465,12 +496,8 @@ int main(int argc, char **argv)
         goto END;
 
     if (!params.output_filename) {
-        size_t ilen = strlen(params.input_filename);
-        const char *ext = strrchr(params.input_filename, '.');
-        if (ext) ilen = ext - params.input_filename;
-        output_filename = malloc(ilen + 5);
-        sprintf(output_filename, "%.*s%s", ilen, params.input_filename,
-                params.transport_format ? ".aac" : ".m4a");
+        const char *ext = params.transport_format ? ".aac" : ".m4a";
+        output_filename = generate_output_filename(params.input_filename, ext);
         params.output_filename = output_filename;
     }
 
