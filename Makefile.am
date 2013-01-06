@@ -24,6 +24,12 @@ if FDK_PLATFORM_WIN32
 	src/compat_win32.c
 endif
 
+if FDK_NO_GETOPT_LONG
+    fdkaac_SOURCES += \
+	missings/getopt.c
+    AM_CPPFLAGS = -Imissings
+endif
+
 EXTRA_DIST = \
     src/*.h      \
     missings/*.c \

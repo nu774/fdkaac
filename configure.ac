@@ -12,7 +12,7 @@ AM_INIT_AUTOMAKE
 AC_PROG_CC
 AM_PROG_CC_C_O
 
-AC_CHECK_HEADERS([getopt.h sys/time.h])
+AC_CHECK_HEADERS([sys/time.h])
 AC_CHECK_HEADERS([localcharset.h langinfo.h endian.h byteswap.h])
 AC_CHECK_HEADERS([fdk-aac/aacenc_lib.h], ,
                  AC_MSG_ERROR([libfdk-aac is required]))
@@ -33,6 +33,8 @@ AC_CHECK_TYPES([ptrdiff_t])
 AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
 AC_CHECK_FUNCS([gettimeofday nl_langinfo strdup])
+AC_CHECK_FUNC(getopt_long)
+AM_CONDITIONAL([FDK_NO_GETOPT_LONG],[test "$ac_cv_func_getopt_long" != "yes"])
 AC_SEARCH_LIBS([aacEncOpen],[fdk-aac])
 
 AC_CANONICAL_HOST
