@@ -164,6 +164,7 @@ inline int16_t pcm_u32be_to_s16(int32_t n)
 {
     return pcm_quantize_s32(m4af_btoh32(n) ^ 0x80000000);
 }
+static
 inline int16_t pcm_f32le_to_s16(int32_t n)
 {
     return pcm_quantize_f64(pcm_i2f(m4af_ltoh32(n)));
