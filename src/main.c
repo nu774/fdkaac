@@ -148,7 +148,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "help",             no_argument,       0, 'h' },
         { "profile",          required_argument, 0, 'p' },
         { "bitrate",          required_argument, 0, 'b' },
-        { "biterate-mode",    required_argument, 0, 'm' },
+        { "bitrate-mode",     required_argument, 0, 'm' },
         { "bandwidth",        required_argument, 0, 'w' },
         { "afterburner",      required_argument, 0, 'a' },
         { "lowdelay-sbr",     no_argument,       0, 'L' },

@@ -1,4 +1,4 @@
 #ifndef VERSION_H
 #define VERSION_H
-const char *fdkaac_version = "0.0.7";
+const char *fdkaac_version = "0.0.8";
 #endif
