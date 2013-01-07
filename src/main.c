@@ -33,13 +33,15 @@
 static
 int read_callback(void *cookie, void *data, uint32_t size)
 {
-    return fread(data, 1, size, (FILE*)cookie);
+    size_t rc = fread(data, 1, size, (FILE*)cookie);
+    return ferror((FILE*)cookie) ? -1 : (int)rc;
 }
 
 static
 int write_callback(void *cookie, const void *data, uint32_t size)
 {
-    return fwrite(data, 1, size, (FILE*)cookie);
+    size_t rc = fwrite(data, 1, size, (FILE*)cookie);
+    return ferror((FILE*)cookie) ? -1 : (int)rc;
 }
 
 static
@@ -297,7 +299,8 @@ int write_sample(FILE *ofp, m4af_writer_t *m4af,
                  const void *data, uint32_t size, uint32_t duration)
 {
     if (!m4af) {
-        if (fwrite(data, 1, size, ofp) < 0) {
+        fwrite(data, 1, size, ofp);
+        if (ferror(ofp)) {
             fprintf(stderr, "ERROR: fwrite(): %s\n", strerror(errno));
             return -1;
         }
