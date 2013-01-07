@@ -31,6 +31,10 @@ if FDK_NO_GETOPT_LONG
 endif
 
 EXTRA_DIST = \
+    m4/.gitkeep  \
     src/*.h      \
     missings/*.c \
-    missings/*.h
+    missings/*.h \
+    MSVC/*.vcxproj \
+    MSVC/*.vcxproj.filters \
+    MSVC/*.sln
