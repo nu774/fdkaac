@@ -12,7 +12,7 @@ fdkaac_SOURCES = \
     src/wav_reader.c
 
 fdkaac_LDADD = \
-    @LIBICONV@ -lm
+    @LIBICONV@ -lfdk-aac -lm
 
 if FDK_PLATFORM_POSIX
     fdkaac_SOURCES += \

@@ -35,7 +35,7 @@ AC_FUNC_FSEEKO
 AC_CHECK_FUNCS([gettimeofday nl_langinfo strdup])
 AC_CHECK_FUNC(getopt_long)
 AM_CONDITIONAL([FDK_NO_GETOPT_LONG],[test "$ac_cv_func_getopt_long" != "yes"])
-AC_SEARCH_LIBS([aacEncOpen],[fdk-aac])
+AC_SEARCH_LIBS([aacEncOpen],[fdk-aac],[],[],[])
 
 AC_CANONICAL_HOST
 
