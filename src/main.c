@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <locale.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -97,12 +98,26 @@ PROGNAME " %s\n"
 "                                 6: LATM MCP=1\n"
 "                                 7: LATM MCP=0\n"
 "                                10: LOAS/LATM (LATM within LOAS)\n"
-" -c, --adts-crc-check          Add CRC protection on ADTS header\n"
+" -C, --adts-crc-check          Add CRC protection on ADTS header\n"
 " -h, --header-period <n>       StreamMuxConfig/PCE repetition period in\n"
 "                               transport layer\n"
 "\n"
 " -o <filename>                 Output filename\n"
 " --ignore-length               Ignore length of WAV header\n"
+"\n"
+"Options for raw (headerless) input:\n"
+" -R, --raw                     Treat input as raw (by default WAV is\n"
+"                               assumed)\n"
+" --raw-channels <n>            Number of channels (default: 2)\n"
+" --raw-rate     <n>            Sample rate (default: 44100)\n"
+" --raw-format   <spec>         Sample format, default is \"S16L\".\n"
+"                               Spec is as follows:\n"
+"                                1st char: S(igned)|U(nsigned)|F(loat)\n"
+"                                2nd part: bits per channel\n"
+"                                Last char: L(ittle)|B(ig)\n"
+"                               Last char can be omitted, in which case L is\n"
+"                               assumed. Spec is case insensitive, therefore\n"
+"                               \"u16b\" is same as \"U16B\".\n"
 "\n"
 "Tagging options:\n"
 " --title <string>\n"
@@ -132,6 +147,11 @@ typedef struct aacenc_param_ex_t {
     char *output_filename;
     unsigned ignore_length;
 
+    int is_raw;
+    unsigned raw_channels;
+    unsigned raw_rate;
+    const char *raw_format;
+
     aacenc_tag_entry_t *tag_table;
     unsigned tag_count;
     unsigned tag_table_capacity;
@@ -144,6 +164,10 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
     unsigned n;
     aacenc_tag_entry_t *tag;
 
+#define OPT_RAW_CHANNELS M4AF_FOURCC('r','c','h','n')
+#define OPT_RAW_RATE     M4AF_FOURCC('r','r','a','t')
+#define OPT_RAW_FORMAT   M4AF_FOURCC('r','f','m','t')
+
     static struct option long_options[] = {
         { "help",             no_argument,       0, 'h' },
         { "profile",          required_argument, 0, 'p' },
@@ -154,28 +178,33 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "lowdelay-sbr",     no_argument,       0, 'L' },
         { "sbr-signaling",    required_argument, 0, 's' },
         { "transport-format", required_argument, 0, 'f' },
-        { "adts-crc-check",   no_argument,       0, 'c' },
+        { "adts-crc-check",   no_argument,       0, 'C' },
         { "header-period",    required_argument, 0, 'P' },
 
         { "ignore-length",    no_argument,       0, 'I' },
 
-        { "title",            required_argument, 0,  M4AF_TAG_TITLE        },
-        { "artist",           required_argument, 0,  M4AF_TAG_ARTIST       },
-        { "album",            required_argument, 0,  M4AF_TAG_ALBUM        },
-        { "genre",            required_argument, 0,  M4AF_TAG_GENRE        },
-        { "date",             required_argument, 0,  M4AF_TAG_DATE         },
-        { "composer",         required_argument, 0,  M4AF_TAG_COMPOSER     },
-        { "grouping",         required_argument, 0,  M4AF_TAG_GROUPING     },
-        { "comment",          required_argument, 0,  M4AF_TAG_COMMENT      },
-        { "album-artist",     required_argument, 0,  M4AF_TAG_ALBUM_ARTIST },
-        { "track",            required_argument, 0,  M4AF_TAG_TRACK        },
-        { "disk",             required_argument, 0,  M4AF_TAG_DISK         },
-        { "tempo",            required_argument, 0,  M4AF_TAG_TEMPO        },
+        { "raw",              no_argument,       0, 'R' },
+        { "raw-channels",     required_argument, 0, OPT_RAW_CHANNELS       },
+        { "raw-rate",         required_argument, 0, OPT_RAW_RATE           },
+        { "raw-format",       required_argument, 0, OPT_RAW_FORMAT         },
+
+        { "title",            required_argument, 0, M4AF_TAG_TITLE         },
+        { "artist",           required_argument, 0, M4AF_TAG_ARTIST        },
+        { "album",            required_argument, 0, M4AF_TAG_ALBUM         },
+        { "genre",            required_argument, 0, M4AF_TAG_GENRE         },
+        { "date",             required_argument, 0, M4AF_TAG_DATE          },
+        { "composer",         required_argument, 0, M4AF_TAG_COMPOSER      },
+        { "grouping",         required_argument, 0, M4AF_TAG_GROUPING      },
+        { "comment",          required_argument, 0, M4AF_TAG_COMMENT       },
+        { "album-artist",     required_argument, 0, M4AF_TAG_ALBUM_ARTIST  },
+        { "track",            required_argument, 0, M4AF_TAG_TRACK         },
+        { "disk",             required_argument, 0, M4AF_TAG_DISK          },
+        { "tempo",            required_argument, 0, M4AF_TAG_TEMPO         },
     };
     params->afterburner = 1;
 
     aacenc_getmainargs(&argc, &argv);
-    while ((ch = getopt_long(argc, argv, "hp:b:m:w:a:Ls:f:cP:Io:",
+    while ((ch = getopt_long(argc, argv, "hp:b:m:w:a:Ls:f:CP:Io:R",
                              long_options, 0)) != EOF) {
         switch (ch) {
         case 'h':
@@ -248,6 +277,26 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         case 'I':
             params->ignore_length = 1;
             break;
+        case 'R':
+            params->is_raw = 1;
+            break;
+        case OPT_RAW_CHANNELS:
+            if (sscanf(optarg, "%u", &n) != 1) {
+                fprintf(stderr, "invalid arg for raw-channels\n");
+                return -1;
+            }
+            params->raw_channels = n;
+            break;
+        case OPT_RAW_RATE:
+            if (sscanf(optarg, "%u", &n) != 1) {
+                fprintf(stderr, "invalid arg for raw-rate\n");
+                return -1;
+            }
+            params->raw_rate = n;
+            break;
+        case OPT_RAW_FORMAT:
+            params->raw_format = optarg;
+            break;
         case M4AF_TAG_TITLE:
         case M4AF_TAG_ARTIST:
         case M4AF_TAG_ALBUM:
@@ -279,6 +328,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
     }
     if (argc == optind)
         return usage(), -1;
+
     if (!params->bitrate && !params->bitrate_mode) {
         fprintf(stderr, "bitrate or bitrate-mode is mandatory\n");
         return -1;
@@ -290,6 +340,15 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
     }
     if (params->bitrate && params->bitrate < 10000)
         params->bitrate *= 1000;
+
+    if (params->is_raw) {
+        if (!params->raw_channels)
+            params->raw_channels = 2;
+        if (!params->raw_rate)
+            params->raw_rate = 44100;
+        if (!params->raw_format)
+            params->raw_format = "S16L";
+    }
     params->input_filename = argv[optind];
     return 0;
 };
@@ -462,9 +521,45 @@ char *generate_output_filename(const char *filename, const char *ext)
     return p;
 }
 
+static
+int parse_raw_spec(const char *spec, pcm_sample_description_t *desc)
+{
+    unsigned bits;
+    unsigned char c_type, c_endian = 'L';
+    int type;
+
+    if (sscanf(spec, "%c%u%c", &c_type, &bits, &c_endian) < 2)
+        return -1;
+    c_type = toupper(c_type);
+    c_endian = toupper(c_endian);
+
+    if (c_type == 'S')
+        type = 1;
+    else if (c_type == 'U')
+        type = 2;
+    else if (c_type == 'F')
+        type = 4;
+    else
+        return -1;
+
+    if (c_endian == 'B')
+        type |= 8;
+    else if (c_endian != 'L')
+        return -1;
+
+    if (c_type == 'F' && bits != 32 && bits != 64)
+        return -1;
+    if (c_type != 'F' && (bits < 8 || bits > 32))
+        return -1;
+
+    desc->sample_type = type;
+    desc->bits_per_channel = bits;
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
-    wav_io_context_t wav_io = { read_callback, seek_callback };
+    wav_io_context_t wav_io = { read_callback, seek_callback, tell_callback };
     m4af_io_callbacks_t m4af_io = {
         write_callback, seek_callback, tell_callback };
     aacenc_param_ex_t params = { 0 };
@@ -493,13 +588,30 @@ int main(int argc, char **argv)
                        strerror(errno));
         goto END;
     }
-
-    if (fstat(fileno(ifp), &stb) == 0 && (stb.st_mode & S_IFMT) != S_IFREG)
+    if (fstat(fileno(ifp), &stb) == 0 && (stb.st_mode & S_IFMT) != S_IFREG) {
         wav_io.seek = 0;
-
-    if ((wavf = wav_open(&wav_io, ifp, params.ignore_length)) == 0) {
-        fprintf(stderr, "ERROR: broken / unsupported input file\n");
-        goto END;
+        wav_io.tell = 0;
+    }
+    if (!params.is_raw) {
+        if ((wavf = wav_open(&wav_io, ifp, params.ignore_length)) == 0) {
+            fprintf(stderr, "ERROR: broken / unsupported input file\n");
+            goto END;
+        }
+    } else {
+        int bytes_per_channel;
+        pcm_sample_description_t desc = { 0 };
+        if (parse_raw_spec(params.raw_format, &desc) < 0) {
+            fprintf(stderr, "ERROR: invalid raw-format spec\n");
+            goto END;
+        }
+        desc.sample_rate = params.raw_rate;
+        desc.channels_per_frame = params.raw_channels;
+        bytes_per_channel = (desc.bits_per_channel + 7) / 8;
+        desc.bytes_per_frame = params.raw_channels * bytes_per_channel;
+        if ((wavf = raw_open(&wav_io, ifp, &desc)) == 0) {
+            fprintf(stderr, "ERROR: failed to open raw input\n");
+            goto END;
+        }
     }
     sample_format = wav_get_format(wavf);
 

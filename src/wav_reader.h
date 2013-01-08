@@ -16,16 +16,20 @@ enum wav_error_code {
 
 typedef int (*wav_read_callback)(void *cookie, void *data, uint32_t size);
 typedef int (*wav_seek_callback)(void *cookie, int64_t off, int whence);
+typedef int64_t (*wav_tell_callback)(void *cookie);
 
 typedef struct wav_io_context_t {
     wav_read_callback read;
     wav_seek_callback seek;
+    wav_tell_callback tell;
 } wav_io_context_t;
 
 typedef struct wav_reader_t wav_reader_t;
 
 wav_reader_t *wav_open(wav_io_context_t *io_ctx, void *io_cookie,
                        int ignore_length);
+wav_reader_t *raw_open(wav_io_context_t *io_ctx, void *io_cookie,
+                       const pcm_sample_description_t *desc);
 const pcm_sample_description_t *wav_get_format(wav_reader_t *reader);
 int wav_read_frames(wav_reader_t *reader, void *buffer, unsigned nframes);
 int64_t wav_get_length(wav_reader_t *reader);

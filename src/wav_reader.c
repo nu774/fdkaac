@@ -91,7 +91,7 @@ int riff_read(wav_reader_t *reader, void *buffer, uint32_t size)
 }
 
 static
-int riff_skip(wav_reader_t *reader, uint32_t count)
+int riff_skip(wav_reader_t *reader, int64_t count)
 {
     char buff[8192];
     int rc;
@@ -112,6 +112,37 @@ int riff_skip(wav_reader_t *reader, uint32_t count)
     if (count > 0)
         reader->last_error = WAV_IO_ERROR;
     return reader->last_error ? -1 : 0;
+}
+
+static
+int riff_seek(wav_reader_t *reader, int64_t off, int whence)
+{
+    int rc;
+    if (reader->last_error)
+        return -1;
+    if (!reader->io.seek)
+        goto FAIL;
+    if ((rc = reader->io.seek(reader->io_cookie, off, whence)) < 0)
+        goto FAIL;
+    return 0;
+FAIL:
+    reader->last_error = WAV_IO_ERROR;
+    return -1;
+}
+
+static
+int64_t riff_tell(wav_reader_t *reader)
+{
+    int64_t off;
+
+    if (reader->last_error || !reader->io.tell)
+        return -1;
+    off = reader->io.tell(reader->io_cookie);
+    if (off < 0) {
+        reader->last_error = WAV_IO_ERROR;
+        return -1;
+    }
+    return off;
 }
 
 static
@@ -331,3 +362,28 @@ wav_reader_t *wav_open(wav_io_context_t *io_ctx, void *io_cookie,
         reader->length = data_length / reader->sample_format.bytes_per_frame;
     return reader;
 }
+
+wav_reader_t *raw_open(wav_io_context_t *io_ctx, void *io_cookie,
+                       const pcm_sample_description_t *desc)
+{
+    wav_reader_t *reader = 0;
+
+    if ((reader = calloc(1, sizeof(wav_reader_t))) == 0)
+        return 0;
+    memcpy(&reader->io, io_ctx, sizeof(wav_io_context_t));
+    memcpy(&reader->sample_format, desc, sizeof(pcm_sample_description_t));
+    reader->io_cookie = io_cookie;
+    if (io_ctx->seek && io_ctx->tell) {
+        TRY_IO(riff_seek(reader, 0, SEEK_END));
+        reader->length = riff_tell(reader) / desc->bytes_per_frame;
+        TRY_IO(riff_seek(reader, 0, SEEK_SET));
+    } else
+        reader->length = INT64_MAX;
+    return reader;
+FAIL:
+    if (reader)
+        free(reader);
+    return 0;
+}
+
+
