@@ -80,7 +80,7 @@ void aacenc_progress_finish(aacenc_progress_t *progress, int64_t current)
     double ellapsed = (aacenc_timer() - progress->start) / 1000.0;
     aacenc_progress_update(progress, current, 0);
     if (progress->total == INT64_MAX)
-        fprintf(stderr, "\n%" PRId64 "samples processed in ", current);
+        fprintf(stderr, "\n%" PRId64 " samples processed in ", current);
     else
         fprintf(stderr, "\n%" PRId64 "/%" PRId64 " samples processed in ",
                 current, progress->total);
