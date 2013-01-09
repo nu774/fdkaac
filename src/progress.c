@@ -6,6 +6,8 @@
 #  include "config.h"
 #endif
 #include <stdio.h>
+#include <limits.h>
+#include <float.h>
 #include <time.h>
 #if HAVE_STDINT_H
 #  include <stdint.h>
@@ -51,11 +53,14 @@ void aacenc_progress_init(aacenc_progress_t *progress, int64_t total,
 void aacenc_progress_update(aacenc_progress_t *progress, int64_t current,
                             int period)
 {
-    int percent = 100.0 * current / progress->total + .5;
     double seconds = current / progress->timescale;
     double ellapsed = (aacenc_timer() - progress->start) / 1000.0;
-    double eta = ellapsed * (progress->total / (double)current - 1.0);
-    double speed = ellapsed ? seconds / ellapsed : 0.0;
+    double speed = ellapsed ? seconds / ellapsed : 1.0;
+    int percent = progress->total ? 100.0 * current / progress->total + .5
+                                  : 100;
+    double eta = current ? ellapsed * (progress->total / (double)current - 1.0)
+                         : progress->total ? DBL_MAX : 0;
+
     if (current < progress->processed + period)
         return;
 
