@@ -456,10 +456,16 @@ int m4af_add_itmf_int16_tag(m4af_writer_t *ctx, uint32_t type, int value)
     return m4af_add_itmf_short_tag(ctx, type, M4AF_INTEGER, &data, 2);
 }
 
-int m4af_add_itmf_int32_tag(m4af_writer_t *ctx, uint32_t type, int value)
+int m4af_add_itmf_int32_tag(m4af_writer_t *ctx, uint32_t type, uint32_t value)
 {
     uint32_t data = m4af_htob32(value);
     return m4af_add_itmf_short_tag(ctx, type, M4AF_INTEGER, &data, 4);
+}
+
+int m4af_add_itmf_int64_tag(m4af_writer_t *ctx, uint32_t type, uint64_t value)
+{
+    uint64_t data = m4af_htob64(value);
+    return m4af_add_itmf_short_tag(ctx, type, M4AF_INTEGER, &data, 8);
 }
 
 int m4af_add_itmf_track_tag(m4af_writer_t *ctx, int track, int total)

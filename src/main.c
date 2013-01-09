@@ -8,6 +8,11 @@
 #if HAVE_STDINT_H
 #  include <stdint.h>
 #endif
+#if HAVE_INTTYPES_H
+#  include <inttypes.h>
+#elif defined(_MSC_VER)
+#  define SCNd64 "I64d"
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -132,12 +137,16 @@ PROGNAME " %s\n"
 " --track <number[/total]>\n"
 " --disk <number[/total]>\n"
 " --tempo <n>\n"
+" --tag <fcc>:<value>          Set iTunes predefined tag with four char code.\n"
+" --long-tag <name>:<value>    Set arbitrary tag as iTunes custom metadata.\n"
     , fdkaac_version);
 }
 
 typedef struct aacenc_tag_entry_t {
     uint32_t tag;
+    const char *name;
     const char *data;
+    uint32_t data_size;
 } aacenc_tag_entry_t;
 
 typedef struct aacenc_param_ex_t {
@@ -158,15 +167,37 @@ typedef struct aacenc_param_ex_t {
 } aacenc_param_ex_t;
 
 static
+void param_add_itmf_entry(aacenc_param_ex_t *params, uint32_t tag,
+                         const char *key, const char *value, uint32_t size)
+{
+    aacenc_tag_entry_t *entry;
+    if (params->tag_count == params->tag_table_capacity) {
+        unsigned newsize = params->tag_table_capacity;
+        newsize = newsize ? newsize * 2 : 1;
+        params->tag_table =
+            realloc(params->tag_table, newsize * sizeof(aacenc_tag_entry_t));
+        params->tag_table_capacity = newsize;
+    }
+    entry = params->tag_table + params->tag_count;
+    entry->tag = tag;
+    if (tag == M4AF_FOURCC('-','-','-','-'))
+        entry->name = key;
+    entry->data = value;
+    entry->data_size = size;
+    params->tag_count++;
+}
+
+static
 int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
 {
     int ch;
     unsigned n;
-    aacenc_tag_entry_t *tag;
 
 #define OPT_RAW_CHANNELS M4AF_FOURCC('r','c','h','n')
 #define OPT_RAW_RATE     M4AF_FOURCC('r','r','a','t')
 #define OPT_RAW_FORMAT   M4AF_FOURCC('r','f','m','t')
+#define OPT_SHORT_TAG    M4AF_FOURCC('s','t','a','g')
+#define OPT_LONG_TAG     M4AF_FOURCC('l','t','a','g')
 
     static struct option long_options[] = {
         { "help",             no_argument,       0, 'h' },
@@ -200,6 +231,8 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "track",            required_argument, 0, M4AF_TAG_TRACK         },
         { "disk",             required_argument, 0, M4AF_TAG_DISK          },
         { "tempo",            required_argument, 0, M4AF_TAG_TEMPO         },
+        { "tag",              required_argument, 0, OPT_SHORT_TAG          },
+        { "long-tag",         required_argument, 0, OPT_LONG_TAG           },
     };
     params->afterburner = 1;
 
@@ -309,18 +342,32 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         case M4AF_TAG_TRACK:
         case M4AF_TAG_DISK:
         case M4AF_TAG_TEMPO:
-            if (params->tag_count == params->tag_table_capacity) {
-                unsigned newsize = params->tag_table_capacity;
-                newsize = newsize ? newsize * 2 : 1;
-                params->tag_table =
-                    realloc(params->tag_table,
-                            newsize * sizeof(aacenc_tag_entry_t));
-                params->tag_table_capacity = newsize;
+            param_add_itmf_entry(params, ch, 0, optarg, strlen(optarg));
+            break;
+        case OPT_SHORT_TAG:
+        case OPT_LONG_TAG:
+            {
+                char *val;
+                size_t klen;
+                unsigned fcc = M4AF_FOURCC('-','-','-','-');
+
+                if ((val = strchr(optarg, ':')) == 0) {
+                    fprintf(stderr, "invalid arg for tag\n");
+                    return -1;
+                }
+                *val++ = '\0';
+                if (ch == OPT_SHORT_TAG) {
+                    if ((klen = strlen(optarg))== 3)
+                        fcc = 0xa9;
+                    else if (klen != 4) {
+                        fprintf(stderr, "invalid arg for tag\n");
+                        return -1;
+                    }
+                    for (; *optarg; ++optarg)
+                        fcc = ((fcc << 8) | (*optarg & 0xff));
+                }
+                param_add_itmf_entry(params, fcc, optarg, val, strlen(val));
             }
-            tag = params->tag_table + params->tag_count;
-            tag->tag = ch;
-            tag->data = optarg;
-            params->tag_count++;
             break;
         default:
             return usage(), -1;
@@ -423,66 +470,157 @@ END:
 }
 
 static
+int put_tag_entry(m4af_writer_t *m4af, const aacenc_tag_entry_t *tag)
+{
+    unsigned m, n = 0;
+
+    switch (tag->tag) {
+    case M4AF_TAG_TRACK:
+        if (sscanf(tag->data, "%u/%u", &m, &n) >= 1)
+            m4af_add_itmf_track_tag(m4af, m, n);
+        break;
+    case M4AF_TAG_DISK:
+        if (sscanf(tag->data, "%u/%u", &m, &n) >= 1)
+            m4af_add_itmf_disk_tag(m4af, m, n);
+        break;
+    case M4AF_TAG_GENRE_ID3:
+        if (sscanf(tag->data, "%u", &n) == 1)
+            m4af_add_itmf_genre_tag(m4af, n);
+        break;
+    case M4AF_TAG_TEMPO:
+        if (sscanf(tag->data, "%u", &n) == 1)
+            m4af_add_itmf_int16_tag(m4af, tag->tag, n);
+        break;
+    case M4AF_TAG_COMPILATION:
+    case M4AF_FOURCC('a','k','I','D'):
+    case M4AF_FOURCC('h','d','v','d'):
+    case M4AF_FOURCC('p','c','s','t'):
+    case M4AF_FOURCC('p','g','a','p'):
+    case M4AF_FOURCC('r','t','n','g'):
+    case M4AF_FOURCC('s','t','i','k'):
+        if (sscanf(tag->data, "%u", &n) == 1)
+            m4af_add_itmf_int8_tag(m4af, tag->tag, n);
+        break;
+    case M4AF_FOURCC('a','t','I','D'):
+    case M4AF_FOURCC('c','m','I','D'):
+    case M4AF_FOURCC('c','n','I','D'):
+    case M4AF_FOURCC('g','e','I','D'):
+    case M4AF_FOURCC('s','f','I','D'):
+    case M4AF_FOURCC('t','v','s','n'):
+    case M4AF_FOURCC('t','v','s','s'):
+        if (sscanf(tag->data, "%u", &n) == 1)
+            m4af_add_itmf_int32_tag(m4af, tag->tag, n);
+        break;
+    case M4AF_FOURCC('p','l','I','D'):
+        {
+            int64_t qn;
+            if (sscanf(tag->data, "%" SCNd64, &qn) == 1)
+                m4af_add_itmf_int64_tag(m4af, tag->tag, qn);
+            break;
+        }
+    case M4AF_TAG_ARTWORK:
+        {
+            int data_type = 0;
+            if (!memcmp(tag->data, "GIF", 3))
+                data_type = M4AF_GIF;
+            else if (!memcmp(tag->data, "\xff\xd8\xff", 3))
+                data_type = M4AF_JPEG;
+            else if (!memcmp(tag->data, "\x89PNG", 4))
+                data_type = M4AF_PNG;
+            if (data_type)
+                m4af_add_itmf_short_tag(m4af, tag->tag, data_type,
+                                        tag->data, tag->data_size);
+            break;
+        }
+    case M4AF_FOURCC('-','-','-','-'):
+        {
+            char *u8 = aacenc_to_utf8(tag->data);
+            m4af_add_itmf_long_tag(m4af, tag->name, u8);
+            free(u8);
+            break;
+        }
+    case M4AF_TAG_TITLE:
+    case M4AF_TAG_ARTIST:
+    case M4AF_TAG_ALBUM:
+    case M4AF_TAG_GENRE:
+    case M4AF_TAG_DATE:
+    case M4AF_TAG_COMPOSER:
+    case M4AF_TAG_GROUPING:
+    case M4AF_TAG_COMMENT:
+    case M4AF_TAG_LYRICS:
+    case M4AF_TAG_TOOL:
+    case M4AF_TAG_ALBUM_ARTIST:
+    case M4AF_TAG_DESCRIPTION:
+    case M4AF_TAG_LONG_DESCRIPTION:
+    case M4AF_TAG_COPYRIGHT:
+    case M4AF_FOURCC('a','p','I','D'):
+    case M4AF_FOURCC('c','a','t','g'):
+    case M4AF_FOURCC('k','e','y','w'):
+    case M4AF_FOURCC('p','u','r','d'):
+    case M4AF_FOURCC('p','u','r','l'):
+    case M4AF_FOURCC('s','o','a','a'):
+    case M4AF_FOURCC('s','o','a','l'):
+    case M4AF_FOURCC('s','o','a','r'):
+    case M4AF_FOURCC('s','o','c','o'):
+    case M4AF_FOURCC('s','o','n','m'):
+    case M4AF_FOURCC('s','o','s','n'):
+    case M4AF_FOURCC('t','v','e','n'):
+    case M4AF_FOURCC('t','v','n','n'):
+    case M4AF_FOURCC('t','v','s','h'):
+    case M4AF_FOURCC('\xa9','e','n','c'):
+    case M4AF_FOURCC('\xa9','s','t','3'):
+        {
+            char *u8 = aacenc_to_utf8(tag->data);
+            m4af_add_itmf_string_tag(m4af, tag->tag, u8);
+            free(u8);
+            break;
+        }
+    default:
+        fprintf(stderr, "WARNING: unknown/unsupported tag: %c%c%c%c\n",
+                tag->tag >> 24, (tag->tag >> 16) & 0xff,
+                (tag->tag >> 8) & 0xff, tag->tag & 0xff);
+    }
+}
+
+static
+void put_tool_tag(m4af_writer_t *m4af, const aacenc_param_ex_t *params,
+                  HANDLE_AACENCODER encoder)
+{
+    char tool_info[256];
+    char *p = tool_info;
+    LIB_INFO *lib_info = 0;
+
+    p += sprintf(p, PROGNAME " %s, ", fdkaac_version);
+
+    lib_info = calloc(FDK_MODULE_LAST, sizeof(LIB_INFO));
+    if (aacEncGetLibInfo(lib_info) == AACENC_OK) {
+        int i;
+        for (i = 0; i < FDK_MODULE_LAST; ++i)
+            if (lib_info[i].module_id == FDK_AACENC)
+                break;
+        p += sprintf(p, "libfdk-aac %s, ", lib_info[i].versionStr);
+    }
+    free(lib_info);
+    if (params->bitrate_mode)
+        sprintf(p, "VBR mode %d", params->bitrate_mode);
+    else
+        sprintf(p, "CBR %dkbps",
+                aacEncoder_GetParam(encoder, AACENC_BITRATE) / 1000);
+
+    m4af_add_itmf_string_tag(m4af, M4AF_TAG_TOOL, tool_info);
+}
+
+static
 int finalize_m4a(m4af_writer_t *m4af, const aacenc_param_ex_t *params,
                  HANDLE_AACENCODER encoder)
 {
     unsigned i;
     aacenc_tag_entry_t *tag = params->tag_table;
+    for (i = 0; i < params->tag_count; ++i, ++tag)
+        put_tag_entry(m4af, tag);
 
-    for (i = 0; i < params->tag_count; ++i, ++tag) {
-        switch (tag->tag) {
-        case M4AF_TAG_TRACK:
-            {
-                unsigned m, n = 0;
-                if (sscanf(tag->data, "%u/%u", &m, &n) >= 1)
-                    m4af_add_itmf_track_tag(m4af, m, n);
-                break;
-            }
-        case M4AF_TAG_DISK:
-            {
-                unsigned m, n = 0;
-                if (sscanf(tag->data, "%u/%u", &m, &n) >= 1)
-                    m4af_add_itmf_disk_tag(m4af, m, n);
-                break;
-            }
-        case M4AF_TAG_TEMPO:
-            {
-                unsigned n;
-                if (sscanf(tag->data, "%u", &n) == 1)
-                    m4af_add_itmf_int16_tag(m4af, tag->tag, n);
-                break;
-            }
-        default:
-            {
-                char *u8 = aacenc_to_utf8(tag->data);
-                m4af_add_itmf_string_tag(m4af, tag->tag, u8);
-                free(u8);
-            }
-        }
-    }
-    {
-        char tool_info[256];
-        char *p = tool_info;
-        LIB_INFO *lib_info = 0;
+    put_tool_tag(m4af, params, encoder);
 
-        p += sprintf(p, PROGNAME " %s, ", fdkaac_version);
-
-        lib_info = calloc(FDK_MODULE_LAST, sizeof(LIB_INFO));
-        if (aacEncGetLibInfo(lib_info) == AACENC_OK) {
-            for (i = 0; i < FDK_MODULE_LAST; ++i)
-                if (lib_info[i].module_id == FDK_AACENC)
-                    break;
-            p += sprintf(p, "libfdk-aac %s, ", lib_info[i].versionStr);
-        }
-        free(lib_info);
-        if (params->bitrate_mode)
-            sprintf(p, "VBR mode %d", params->bitrate_mode);
-        else
-            sprintf(p, "CBR %dkbps",
-                    aacEncoder_GetParam(encoder, AACENC_BITRATE) / 1000);
-
-        m4af_add_itmf_string_tag(m4af, M4AF_TAG_TOOL, tool_info);
-    }
     if (m4af_finalize(m4af) < 0) {
         fprintf(stderr, "ERROR: failed to finalize m4a\n");
         return -1;

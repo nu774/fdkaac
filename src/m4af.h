@@ -103,7 +103,9 @@ int m4af_add_itmf_int8_tag(m4af_writer_t *ctx, uint32_t type, int value);
 
 int m4af_add_itmf_int16_tag(m4af_writer_t *ctx, uint32_t type, int value);
 
-int m4af_add_itmf_int32_tag(m4af_writer_t *ctx, uint32_t type, int value);
+int m4af_add_itmf_int32_tag(m4af_writer_t *ctx, uint32_t type, uint32_t value);
+
+int m4af_add_itmf_int64_tag(m4af_writer_t *ctx, uint32_t type, uint64_t value);
 
 int m4af_add_itmf_track_tag(m4af_writer_t *ctx, int track, int total);
 
