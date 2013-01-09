@@ -38,6 +38,7 @@ struct wav_reader_t {
     pcm_sample_description_t sample_format;
     int64_t length;
     int64_t position;
+    int32_t data_offset;
     int ignore_length;
     int last_error;
     wav_io_context_t io;
@@ -240,9 +241,8 @@ int riff_ds64(wav_reader_t *reader, int64_t *length)
                   fcc == RIFF_FOURCC('d','s','6','4') && chunk_size >= 28);
     TRY_IO(riff_scan(reader, "QQQL",
                      &riff_size, length, &sample_count, &table_size) != 4);
-    if (table_size == 0)
-        return 0;
-    reader->last_error = WAV_UNSUPPORTED_FORMAT;
+    TRY_IO(riff_skip(reader, (chunk_size - 27) & ~1));
+    reader->data_offset += (chunk_size + 9) & ~1;
 FAIL:
     return -1;
 }
@@ -321,6 +321,8 @@ int wav_parse(wav_reader_t *reader, int64_t *data_length)
     TRY_IO(riff_read32(reader, &fcc));
     if (fcc != RIFF_FOURCC('W','A','V','E'))
         goto FAIL;
+    reader->data_offset = 12;
+
     if (container == RIFF_FOURCC('R','F','6','4'))
         riff_ds64(reader, data_length);
     while ((fcc = riff_next_chunk(reader, &chunk_size)) != 0) {
@@ -330,9 +332,12 @@ int wav_parse(wav_reader_t *reader, int64_t *data_length)
         } else if (fcc == RIFF_FOURCC('d','a','t','a')) {
             if (container == RIFF_FOURCC('R','I','F','F'))
                 *data_length = chunk_size;
+            reader->data_offset += 8;
             break;
-        } else
+        } else {
             TRY_IO(riff_skip(reader, (chunk_size + 1) & ~1));
+        }
+        reader->data_offset += (chunk_size + 9) & ~1;
     }
     if (fcc == RIFF_FOURCC('d','a','t','a'))
         return 0;
@@ -343,8 +348,9 @@ FAIL:
 wav_reader_t *wav_open(wav_io_context_t *io_ctx, void *io_cookie,
                        int ignore_length)
 {
-    wav_reader_t *reader;
+    wav_reader_t *reader = 0;
     int64_t data_length;
+    unsigned bpf;
 
     if ((reader = calloc(1, sizeof(wav_reader_t))) == 0)
         return 0;
@@ -355,11 +361,20 @@ wav_reader_t *wav_open(wav_io_context_t *io_ctx, void *io_cookie,
         free(reader);
         return 0;
     }
-    if (ignore_length || !data_length ||
-        data_length % reader->sample_format.bytes_per_frame != 0)
+    bpf = reader->sample_format.bytes_per_frame;
+    if (ignore_length || !data_length || data_length % bpf)
         reader->length = INT64_MAX;
     else
-        reader->length = data_length / reader->sample_format.bytes_per_frame;
+        reader->length = data_length / bpf;
+
+    if (reader->length == INT64_MAX && reader->io.seek && reader->io.tell) {
+        if (reader->io.seek(reader->io_cookie, 0, SEEK_END) >= 0) {
+            int64_t size = reader->io.tell(reader->io_cookie);
+            if (size > 0)
+                reader->length = (size - reader->data_offset) / bpf;
+            reader->io.seek(reader->io_cookie, reader->data_offset, SEEK_SET);
+        }
+    }
     return reader;
 }
 
@@ -374,16 +389,15 @@ wav_reader_t *raw_open(wav_io_context_t *io_ctx, void *io_cookie,
     memcpy(&reader->sample_format, desc, sizeof(pcm_sample_description_t));
     reader->io_cookie = io_cookie;
     if (io_ctx->seek && io_ctx->tell) {
-        TRY_IO(riff_seek(reader, 0, SEEK_END));
-        reader->length = riff_tell(reader) / desc->bytes_per_frame;
-        TRY_IO(riff_seek(reader, 0, SEEK_SET));
+        if (reader->io.seek(reader->io_cookie, 0, SEEK_END) >= 0) {
+            int64_t size = reader->io.tell(reader->io_cookie);
+            if (size > 0)
+                reader->length = size / desc->bytes_per_frame;
+            reader->io.seek(reader->io_cookie, reader->data_offset, SEEK_SET);
+        }
     } else
         reader->length = INT64_MAX;
     return reader;
-FAIL:
-    if (reader)
-        free(reader);
-    return 0;
 }
 
 
