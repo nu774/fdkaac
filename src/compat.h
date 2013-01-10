@@ -20,5 +20,6 @@ FILE *aacenc_fopen(const char *name, const char *mode);
 void aacenc_getmainargs(int *argc, char ***argv);
 char *aacenc_to_utf8(const char *s);
 int aacenc_fprintf(FILE *fp, const char *fmt, ...);
+const char *aacenc_basename(const char *path);
 
 #endif

@@ -48,6 +48,16 @@ int aacenc_fprintf(FILE *fp, const char *fmt, ...)
     return cnt;
 }
 
+/*
+ * Different from POSIX basename() when path ends with /.
+ * Since we use this only for a regular file, the difference doesn't matter.
+ */
+const char *aacenc_basename(const char *path)
+{
+    const char *p = strrchr(path, '/');
+    return p ? p + 1: path;
+}
+
 #ifndef HAVE_ICONV
 char *aacenc_to_utf8(const char *s)
 {

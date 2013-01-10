@@ -126,3 +126,15 @@ int aacenc_fprintf(FILE *fp, const char *fmt, ...)
     return cnt;
 }
 
+const char *aacenc_basename(const char *path)
+{
+/*
+ * Since path is encoded with UTF-8, naive usage of strrchr() shoule be safe.
+ */
+    const char *p = strrchr(path, '/');
+    const char *q = strrchr(path, '\\');
+    const char *r = strrchr(path, ':');
+    if (q > p) p = q;
+    if (r > p) p = r;
+    return p ? p + 1 : path;
+}

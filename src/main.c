@@ -629,17 +629,6 @@ int finalize_m4a(m4af_writer_t *m4af, const aacenc_param_ex_t *params,
 }
 
 static
-const char *basename(const char *filename)
-{
-    char *p = strrchr(filename, '/');
-#ifdef _WIN32
-    char *q = strrchr(filename, '\\');
-    if (p < q) p = q;
-#endif
-    return p ? p + 1 : filename;
-}
-
-static
 char *generate_output_filename(const char *filename, const char *ext)
 {
     char *p = 0;
@@ -649,7 +638,7 @@ char *generate_output_filename(const char *filename, const char *ext)
         p = malloc(ext_len + 6);
         sprintf(p, "stdin%s", ext);
     } else {
-        const char *base = basename(filename);
+        const char *base = aacenc_basename(filename);
         size_t ilen = strlen(base);
         const char *ext_org = strrchr(base, '.');
         if (ext_org) ilen = ext_org - base;
