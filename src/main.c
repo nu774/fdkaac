@@ -567,6 +567,7 @@ int put_tag_entry(m4af_writer_t *m4af, const aacenc_tag_entry_t *tag)
     case M4AF_FOURCC('t','v','e','n'):
     case M4AF_FOURCC('t','v','n','n'):
     case M4AF_FOURCC('t','v','s','h'):
+    case M4AF_FOURCC('x','i','d',' '):
     case M4AF_FOURCC('\xa9','e','n','c'):
     case M4AF_FOURCC('\xa9','s','t','3'):
         {
