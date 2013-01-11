@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <assert.h>
 #include <io.h>
 #include <fcntl.h>
 #include <sys/timeb.h>
@@ -91,6 +92,20 @@ char *aacenc_to_utf8(const char *s)
 {
     return _strdup(s);
 }
+
+#if defined(__MINGW32__) && !defined(HAVE__VSCPRINTF)
+int _vscprintf(const char *fmt, va_list ap) 
+{
+    static int (*fp_vscprintf)(const char *, va_list) = 0;
+    if (!fp_vscprintf) {
+        HANDLE h = GetModuleHandleA("msvcrt.dll");
+        FARPROC fp = GetProcAddress(h, "_vscprintf");
+        InterlockedCompareExchangePointer(&fp_vscprintf, fp, 0);
+    }
+    assert(fp_vscprintf);
+    return fp_vscprintf(fmt, ap);
+}
+#endif
 
 int aacenc_fprintf(FILE *fp, const char *fmt, ...)
 {
