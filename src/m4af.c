@@ -516,15 +516,6 @@ void m4af_update_size(m4af_writer_t *ctx, int64_t pos)
 }
 
 static
-int m4af_head_version(m4af_writer_t *ctx, int track_idx)
-{
-    m4af_track_t *track = &ctx->track[track_idx];
-    return track->duration > UINT32_MAX
-        || track->creation_time > UINT32_MAX
-        || track->modification_time > UINT32_MAX;
-}
-
-static
 void m4af_descriptor(m4af_writer_t *ctx, uint32_t tag, uint32_t size)
 {
     uint8_t buf[5];
@@ -835,7 +826,9 @@ void m4af_mdhd_box(m4af_writer_t *ctx, int track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
-    uint8_t version = m4af_head_version(ctx, track_idx);
+    uint8_t version = (track->creation_time > UINT32_MAX ||
+                       track->modification_time > UINT32_MAX ||
+                       track->duration > UINT32_MAX);
 
     m4af_write(ctx, "\0\0\0\0mdhd", 8);
     m4af_write(ctx, &version, 1);
@@ -898,7 +891,11 @@ void m4af_tkhd_box(m4af_writer_t *ctx, int track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
-    uint8_t version = m4af_head_version(ctx, track_idx);
+    int64_t duration =
+        (double)track->duration / track->timescale * ctx->timescale + .5;
+    uint8_t version = (track->creation_time > UINT32_MAX ||
+                       track->modification_time > UINT32_MAX ||
+                       duration > UINT32_MAX);
     m4af_write(ctx, "\0\0\0\0tkhd", 8);
     m4af_write(ctx, &version, 1);
     m4af_write(ctx, "\0\0\007", 3);  /* flags  */
@@ -908,14 +905,14 @@ void m4af_tkhd_box(m4af_writer_t *ctx, int track_idx)
         m4af_write32(ctx, track_idx + 1);
         m4af_write(ctx, "\0\0\0\0"   /* reserved    */
                         , 4);
-        m4af_write64(ctx, track->duration);
+        m4af_write64(ctx, duration);
     } else {
         m4af_write32(ctx, track->creation_time);
         m4af_write32(ctx, track->modification_time);
         m4af_write32(ctx, track_idx + 1);
         m4af_write(ctx, "\0\0\0\0"   /* reserved    */
                         , 4);
-        m4af_write32(ctx, track->duration);
+        m4af_write32(ctx, duration);
     }
     m4af_write(ctx,
                "\0\0\0\0"   /* reserved[0]      */
@@ -956,7 +953,7 @@ int64_t m4af_movie_duration(m4af_writer_t *ctx)
     unsigned i;
     for (i = 0; i < ctx->num_tracks; ++i) {
         double x = ctx->track[i].duration;
-        int64_t duration = x * ctx->track[i].timescale / ctx->timescale + .5;
+        int64_t duration = x / ctx->track[i].timescale * ctx->timescale + .5;
         if (duration > movie_duration)
             movie_duration = duration;
     }
@@ -967,8 +964,10 @@ static
 void m4af_mvhd_box(m4af_writer_t *ctx)
 {
     int64_t pos = m4af_tell(ctx);
-    uint8_t version = m4af_head_version(ctx, 0);
     int64_t movie_duration = m4af_movie_duration(ctx);
+    uint8_t version = (ctx->creation_time > UINT32_MAX ||
+                       ctx->modification_time > UINT32_MAX ||
+                       movie_duration > UINT32_MAX);
 
     m4af_write(ctx, "\0\0\0\0mvhd", 8);
     m4af_write(ctx, &version, 1);
