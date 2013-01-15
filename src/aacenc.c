@@ -142,7 +142,7 @@ int aac_encode_frame(HANDLE_AACENCODER encoder,
     unsigned channel_mode, obytes;
 
     channel_mode = aacEncoder_GetParam(encoder, AACENC_CHANNELMODE);
-    obytes = 6144 / 8 * channel_mode;
+    obytes = 6144 / 8 * channel_mode + 7;
     if (!*output || *osize < obytes) {
         *osize = obytes;
         *output = realloc(*output, obytes);
