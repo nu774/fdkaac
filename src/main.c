@@ -470,7 +470,7 @@ END:
 }
 
 static
-int put_tag_entry(m4af_writer_t *m4af, const aacenc_tag_entry_t *tag)
+void put_tag_entry(m4af_writer_t *m4af, const aacenc_tag_entry_t *tag)
 {
     unsigned m, n = 0;
 
