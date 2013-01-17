@@ -357,6 +357,14 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
                 }
                 *val++ = '\0';
                 if (ch == OPT_SHORT_TAG) {
+                    /*
+                     * take care of U+00A9(COPYRIGHT SIGN).
+                     * 1) if length of fcc is 3, we prepend '\xa9'.
+                     * 2) U+00A9 becomes "\xc2\xa9" in UTF-8. Therefore
+                     *    we remove first '\xc2'.
+                     */
+                    if (optarg[0] == '\xc2')
+                        ++optarg;
                     if ((klen = strlen(optarg))== 3)
                         fcc = 0xa9;
                     else if (klen != 4) {
