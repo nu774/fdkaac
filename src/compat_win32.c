@@ -75,6 +75,17 @@ FILE *aacenc_fopen(const char *name, const char *mode)
     return fp;
 }
 
+static char **__aacenc_argv__;
+
+static
+void aacenc_free_mainargs(void)
+{
+    char **p = __aacenc_argv__;
+    for (; *p; ++p)
+	free(*p);
+    free(__aacenc_argv__);
+}
+
 void aacenc_getmainargs(int *argc, char ***argv)
 {
     int i;
@@ -86,6 +97,8 @@ void aacenc_getmainargs(int *argc, char ***argv)
     for (i = 0; i < *argc; ++i)
         codepage_encode_wchar(CP_UTF8, wargv[i], &(*argv)[i]);
     (*argv)[*argc] = 0;
+    __aacenc_argv__ = *argv;
+    atexit(aacenc_free_mainargs);
 }
 
 char *aacenc_to_utf8(const char *s)
