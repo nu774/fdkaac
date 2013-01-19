@@ -108,7 +108,7 @@ PROGNAME " %s\n"
 "                               transport layer\n"
 "\n"
 " -o <filename>                 Output filename\n"
-" --ignore-length               Ignore length of WAV header\n"
+" --ignorelength                Ignore length of WAV header\n"
 "\n"
 "Options for raw (headerless) input:\n"
 " -R, --raw                     Treat input as raw (by default WAV is\n"
@@ -212,7 +212,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "adts-crc-check",   no_argument,       0, 'C' },
         { "header-period",    required_argument, 0, 'P' },
 
-        { "ignore-length",    no_argument,       0, 'I' },
+        { "ignorelength",     no_argument,       0, 'I' },
 
         { "raw",              no_argument,       0, 'R' },
         { "raw-channels",     required_argument, 0, OPT_RAW_CHANNELS       },
@@ -233,6 +233,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "tempo",            required_argument, 0, M4AF_TAG_TEMPO         },
         { "tag",              required_argument, 0, OPT_SHORT_TAG          },
         { "long-tag",         required_argument, 0, OPT_LONG_TAG           },
+        { 0,                  0,                 0, 0                      },
     };
     params->afterburner = 1;
 
