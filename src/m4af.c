@@ -1142,7 +1142,7 @@ int m4af_finalize(m4af_writer_t *ctx)
         track = ctx->track + i;
         if (track->duration) {
             int64_t track_size = 0;
-	    unsigned j;
+            unsigned j;
             for (j = 0; j < track->num_chunks; ++j)
                 track_size += track->chunk_table[j].size;
             track->avgBitrate =
@@ -1176,15 +1176,15 @@ void m4af_teardown(m4af_writer_t **ctxp)
     m4af_writer_t *ctx = *ctxp;
     m4af_track_t *track;
     for (i = 0; i < ctx->num_tracks; ++i) {
-	track = ctx->track + i;
-	if (track->decSpecificInfo)
-	    m4af_free(track->decSpecificInfo);
-	if (track->sample_table)
-	    m4af_free(track->sample_table);
-	if (track->chunk_table)
-	    m4af_free(track->chunk_table);
-	if (track->chunk_buffer)
-	    m4af_free(track->chunk_buffer);
+        track = ctx->track + i;
+        if (track->decSpecificInfo)
+            m4af_free(track->decSpecificInfo);
+        if (track->sample_table)
+            m4af_free(track->sample_table);
+        if (track->chunk_table)
+            m4af_free(track->chunk_table);
+        if (track->chunk_buffer)
+            m4af_free(track->chunk_buffer);
     }
     if (ctx->itmf_table)
         m4af_free_itmf_table(ctx);

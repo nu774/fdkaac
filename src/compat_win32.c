@@ -82,7 +82,7 @@ void aacenc_free_mainargs(void)
 {
     char **p = __aacenc_argv__;
     for (; *p; ++p)
-	free(*p);
+        free(*p);
     free(__aacenc_argv__);
 }
 

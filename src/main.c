@@ -770,10 +770,10 @@ int main(int argc, char **argv)
     if (!params.transport_format) {
         uint32_t scale;
         unsigned framelen = aacinfo.frameLength;
-	int sbr_mode = aacenc_is_sbr_active((aacenc_param_t*)&params);
-	int sig_mode = aacEncoder_GetParam(encoder, AACENC_SIGNALING_MODE);
-	if (sbr_mode && !sig_mode)
-	    downsampled_timescale = 1;
+        int sbr_mode = aacenc_is_sbr_active((aacenc_param_t*)&params);
+        int sig_mode = aacEncoder_GetParam(encoder, AACENC_SIGNALING_MODE);
+        if (sbr_mode && !sig_mode)
+            downsampled_timescale = 1;
         scale = sample_format->sample_rate >> downsampled_timescale;
         if ((m4af = m4af_create(M4AF_CODEC_MP4A, scale, &m4af_io, ofp)) < 0)
             goto END;
@@ -787,7 +787,7 @@ int main(int argc, char **argv)
         goto END;
     if (m4af) {
         uint32_t delay = aacinfo.encoderDelay;
-	int64_t frames_read = wav_get_position(wavf);
+        int64_t frames_read = wav_get_position(wavf);
         uint32_t padding = frame_count * aacinfo.frameLength
                             - frames_read - aacinfo.encoderDelay;
         m4af_set_priming(m4af, 0, delay >> downsampled_timescale,
