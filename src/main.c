@@ -109,6 +109,7 @@ PROGNAME " %s\n"
 "\n"
 " -o <filename>                 Output filename\n"
 " --ignorelength                Ignore length of WAV header\n"
+" -S, --silent                  Don't print progress messages\n"
 "\n"
 "Options for raw (headerless) input:\n"
 " -R, --raw                     Treat input as raw (by default WAV is\n"
@@ -155,6 +156,7 @@ typedef struct aacenc_param_ex_t {
     char *input_filename;
     char *output_filename;
     unsigned ignore_length;
+    int silent;
 
     int is_raw;
     unsigned raw_channels;
@@ -213,6 +215,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "header-period",    required_argument, 0, 'P' },
 
         { "ignorelength",     no_argument,       0, 'I' },
+        { "silent",           no_argument,       0, 'S' },
 
         { "raw",              no_argument,       0, 'R' },
         { "raw-channels",     required_argument, 0, OPT_RAW_CHANNELS       },
@@ -238,7 +241,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
     params->afterburner = 1;
 
     aacenc_getmainargs(&argc, &argv);
-    while ((ch = getopt_long(argc, argv, "hp:b:m:w:a:Ls:f:CP:Io:R",
+    while ((ch = getopt_long(argc, argv, "hp:b:m:w:a:Ls:f:CP:Io:SR",
                              long_options, 0)) != EOF) {
         switch (ch) {
         case 'h':
@@ -310,6 +313,9 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
             break;
         case 'I':
             params->ignore_length = 1;
+            break;
+        case 'S':
+            params->silent = 1;
             break;
         case 'R':
             params->is_raw = 1;
@@ -428,7 +434,8 @@ int write_sample(FILE *ofp, m4af_writer_t *m4af,
 
 static
 int encode(wav_reader_t *wavf, HANDLE_AACENCODER encoder,
-           uint32_t frame_length, FILE *ofp, m4af_writer_t *m4af)
+           uint32_t frame_length, FILE *ofp, m4af_writer_t *m4af,
+           int show_progress)
 {
     uint8_t *ibuf = 0;
     int16_t *pcmbuf = 0;
@@ -457,8 +464,9 @@ int encode(wav_reader_t *wavf, HANDLE_AACENCODER encoder,
                     goto END;
                 }
             }
-            aacenc_progress_update(&progress, wav_get_position(wavf),
-                                   format->sample_rate * 2);
+            if (show_progress)
+                aacenc_progress_update(&progress, wav_get_position(wavf),
+                                       format->sample_rate * 2);
         }
         if ((consumed = aac_encode_frame(encoder, format, pcmbuf, nread,
                                          &obuf, &olen, &osize)) < 0)
@@ -469,7 +477,9 @@ int encode(wav_reader_t *wavf, HANDLE_AACENCODER encoder,
             ++frames_written;
         }
     } while (nread > 0 || olen > 0);
-    aacenc_progress_finish(&progress, wav_get_position(wavf));
+
+    if (show_progress)
+        aacenc_progress_finish(&progress, wav_get_position(wavf));
     rc = frames_written;
 END:
     if (ibuf) free(ibuf);
@@ -782,7 +792,8 @@ int main(int argc, char **argv)
                                       framelen >> downsampled_timescale);
         m4af_begin_write(m4af);
     }
-    frame_count = encode(wavf, encoder, aacinfo.frameLength, ofp, m4af);
+    frame_count = encode(wavf, encoder, aacinfo.frameLength, ofp, m4af,
+                         !params.silent);
     if (frame_count < 0)
         goto END;
     if (m4af) {
