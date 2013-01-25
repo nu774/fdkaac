@@ -139,6 +139,8 @@ PROGNAME " %s\n"
 " --disk <number[/total]>\n"
 " --tempo <n>\n"
 " --tag <fcc>:<value>          Set iTunes predefined tag with four char code.\n"
+" --tag-from-file <fcc>:<filename>\n"
+"                              Same as above, but value is read from file.\n"
 " --long-tag <name>:<value>    Set arbitrary tag as iTunes custom metadata.\n"
     , fdkaac_version);
 }
@@ -148,6 +150,7 @@ typedef struct aacenc_tag_entry_t {
     const char *name;
     const char *data;
     uint32_t data_size;
+    int is_file_name;
 } aacenc_tag_entry_t;
 
 typedef struct aacenc_param_ex_t {
@@ -170,7 +173,8 @@ typedef struct aacenc_param_ex_t {
 
 static
 void param_add_itmf_entry(aacenc_param_ex_t *params, uint32_t tag,
-                         const char *key, const char *value, uint32_t size)
+                          const char *key, const char *value, uint32_t size,
+                          int is_file_name)
 {
     aacenc_tag_entry_t *entry;
     if (params->tag_count == params->tag_table_capacity) {
@@ -186,6 +190,7 @@ void param_add_itmf_entry(aacenc_param_ex_t *params, uint32_t tag,
         entry->name = key;
     entry->data = value;
     entry->data_size = size;
+    entry->is_file_name = is_file_name;
     params->tag_count++;
 }
 
@@ -195,11 +200,12 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
     int ch;
     unsigned n;
 
-#define OPT_RAW_CHANNELS M4AF_FOURCC('r','c','h','n')
-#define OPT_RAW_RATE     M4AF_FOURCC('r','r','a','t')
-#define OPT_RAW_FORMAT   M4AF_FOURCC('r','f','m','t')
-#define OPT_SHORT_TAG    M4AF_FOURCC('s','t','a','g')
-#define OPT_LONG_TAG     M4AF_FOURCC('l','t','a','g')
+#define OPT_RAW_CHANNELS         M4AF_FOURCC('r','c','h','n')
+#define OPT_RAW_RATE             M4AF_FOURCC('r','r','a','t')
+#define OPT_RAW_FORMAT           M4AF_FOURCC('r','f','m','t')
+#define OPT_SHORT_TAG            M4AF_FOURCC('s','t','a','g')
+#define OPT_SHORT_TAG_FILE       M4AF_FOURCC('s','t','g','f')
+#define OPT_LONG_TAG             M4AF_FOURCC('l','t','a','g')
 
     static struct option long_options[] = {
         { "help",             no_argument,       0, 'h' },
@@ -235,6 +241,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "disk",             required_argument, 0, M4AF_TAG_DISK          },
         { "tempo",            required_argument, 0, M4AF_TAG_TEMPO         },
         { "tag",              required_argument, 0, OPT_SHORT_TAG          },
+        { "tag-from-file",    required_argument, 0, OPT_SHORT_TAG_FILE     },
         { "long-tag",         required_argument, 0, OPT_LONG_TAG           },
         { 0,                  0,                 0, 0                      },
     };
@@ -349,9 +356,10 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         case M4AF_TAG_TRACK:
         case M4AF_TAG_DISK:
         case M4AF_TAG_TEMPO:
-            param_add_itmf_entry(params, ch, 0, optarg, strlen(optarg));
+            param_add_itmf_entry(params, ch, 0, optarg, strlen(optarg), 0);
             break;
         case OPT_SHORT_TAG:
+        case OPT_SHORT_TAG_FILE:
         case OPT_LONG_TAG:
             {
                 char *val;
@@ -363,7 +371,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
                     return -1;
                 }
                 *val++ = '\0';
-                if (ch == OPT_SHORT_TAG) {
+                if (ch == OPT_SHORT_TAG || ch == OPT_SHORT_TAG_FILE) {
                     /*
                      * take care of U+00A9(COPYRIGHT SIGN).
                      * 1) if length of fcc is 3, we prepend '\xa9'.
@@ -381,7 +389,8 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
                     for (; *optarg; ++optarg)
                         fcc = ((fcc << 8) | (*optarg & 0xff));
                 }
-                param_add_itmf_entry(params, fcc, optarg, val, strlen(val));
+                param_add_itmf_entry(params, fcc, optarg, val, strlen(val),
+                                     ch == OPT_SHORT_TAG_FILE);
             }
             break;
         default:
@@ -489,25 +498,59 @@ END:
 }
 
 static
+char *load_tag_from_file(const char *path, uint32_t *data_size)
+{
+    FILE *fp = 0;
+    char *data = 0;
+    int64_t size;
+
+    if ((fp = aacenc_fopen(path, "rb")) == NULL) {
+        aacenc_fprintf(stderr, "WARNING: %s: %s\n", path, strerror(errno));
+        goto END;
+    }
+    fseeko(fp, 0, SEEK_END);
+    size = ftello(fp);
+    if (size > 5*1024*1024) {
+        aacenc_fprintf(stderr, "WARNING: %s: size too large\n", path);
+        goto END;
+    }
+    fseeko(fp, 0, SEEK_SET);
+    data = malloc(size + 1);
+    if (data) fread(data, 1, size, fp);
+    data[size] = 0;
+    *data_size = (uint32_t)size;
+END:
+    if (fp) fclose(fp);
+    return data;
+}
+
+static
 void put_tag_entry(m4af_writer_t *m4af, const aacenc_tag_entry_t *tag)
 {
     unsigned m, n = 0;
+    const char *data = tag->data;
+    uint32_t data_size = tag->data_size;
+    char *file_contents = 0;
 
+    if (tag->is_file_name) {
+        data = file_contents = load_tag_from_file(tag->data, &data_size);
+        if (!data) return;
+    }
     switch (tag->tag) {
     case M4AF_TAG_TRACK:
-        if (sscanf(tag->data, "%u/%u", &m, &n) >= 1)
+        if (sscanf(data, "%u/%u", &m, &n) >= 1)
             m4af_add_itmf_track_tag(m4af, m, n);
         break;
     case M4AF_TAG_DISK:
-        if (sscanf(tag->data, "%u/%u", &m, &n) >= 1)
+        if (sscanf(data, "%u/%u", &m, &n) >= 1)
             m4af_add_itmf_disk_tag(m4af, m, n);
         break;
     case M4AF_TAG_GENRE_ID3:
-        if (sscanf(tag->data, "%u", &n) == 1)
+        if (sscanf(data, "%u", &n) == 1)
             m4af_add_itmf_genre_tag(m4af, n);
         break;
     case M4AF_TAG_TEMPO:
-        if (sscanf(tag->data, "%u", &n) == 1)
+        if (sscanf(data, "%u", &n) == 1)
             m4af_add_itmf_int16_tag(m4af, tag->tag, n);
         break;
     case M4AF_TAG_COMPILATION:
@@ -517,7 +560,7 @@ void put_tag_entry(m4af_writer_t *m4af, const aacenc_tag_entry_t *tag)
     case M4AF_FOURCC('p','g','a','p'):
     case M4AF_FOURCC('r','t','n','g'):
     case M4AF_FOURCC('s','t','i','k'):
-        if (sscanf(tag->data, "%u", &n) == 1)
+        if (sscanf(data, "%u", &n) == 1)
             m4af_add_itmf_int8_tag(m4af, tag->tag, n);
         break;
     case M4AF_FOURCC('a','t','I','D'):
@@ -527,33 +570,33 @@ void put_tag_entry(m4af_writer_t *m4af, const aacenc_tag_entry_t *tag)
     case M4AF_FOURCC('s','f','I','D'):
     case M4AF_FOURCC('t','v','s','n'):
     case M4AF_FOURCC('t','v','s','s'):
-        if (sscanf(tag->data, "%u", &n) == 1)
+        if (sscanf(data, "%u", &n) == 1)
             m4af_add_itmf_int32_tag(m4af, tag->tag, n);
         break;
     case M4AF_FOURCC('p','l','I','D'):
         {
             int64_t qn;
-            if (sscanf(tag->data, "%" SCNd64, &qn) == 1)
+            if (sscanf(data, "%" SCNd64, &qn) == 1)
                 m4af_add_itmf_int64_tag(m4af, tag->tag, qn);
             break;
         }
     case M4AF_TAG_ARTWORK:
         {
             int data_type = 0;
-            if (!memcmp(tag->data, "GIF", 3))
+            if (!memcmp(data, "GIF", 3))
                 data_type = M4AF_GIF;
-            else if (!memcmp(tag->data, "\xff\xd8\xff", 3))
+            else if (!memcmp(data, "\xff\xd8\xff", 3))
                 data_type = M4AF_JPEG;
-            else if (!memcmp(tag->data, "\x89PNG", 4))
+            else if (!memcmp(data, "\x89PNG", 4))
                 data_type = M4AF_PNG;
             if (data_type)
                 m4af_add_itmf_short_tag(m4af, tag->tag, data_type,
-                                        tag->data, tag->data_size);
+                                        data, data_size);
             break;
         }
     case M4AF_FOURCC('-','-','-','-'):
         {
-            char *u8 = aacenc_to_utf8(tag->data);
+            char *u8 = aacenc_to_utf8(data);
             m4af_add_itmf_long_tag(m4af, tag->name, u8);
             free(u8);
             break;
@@ -590,7 +633,7 @@ void put_tag_entry(m4af_writer_t *m4af, const aacenc_tag_entry_t *tag)
     case M4AF_FOURCC('\xa9','e','n','c'):
     case M4AF_FOURCC('\xa9','s','t','3'):
         {
-            char *u8 = aacenc_to_utf8(tag->data);
+            char *u8 = aacenc_to_utf8(data);
             m4af_add_itmf_string_tag(m4af, tag->tag, u8);
             free(u8);
             break;
@@ -600,6 +643,7 @@ void put_tag_entry(m4af_writer_t *m4af, const aacenc_tag_entry_t *tag)
                 tag->tag >> 24, (tag->tag >> 16) & 0xff,
                 (tag->tag >> 8) & 0xff, tag->tag & 0xff);
     }
+    if (file_contents) free(file_contents);
 }
 
 static

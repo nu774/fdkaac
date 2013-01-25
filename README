@@ -31,3 +31,14 @@ look like the following:
 +- src
 
 MSVC solution for Visual Studio 2010 is under MSVC directory.
+
+Tagging Options
+---------------
+Generic tagging options like --tag, --tag-from-file, --long-tag allows you
+to set arbitrary tags.
+Available tags and their fcc (four char code) for --tag and --tag-from-file
+can be found at http://code.google.com/p/mp4v2/wiki/iTunesMetadata
+
+For tags such as Artist where first char of fcc is copyright sign,
+you can skip first char and just say like --tag="ART:Foo Bar" or
+--tag-from-file=lyr:/path/to/your/lyrics.txt
