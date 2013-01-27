@@ -52,13 +52,20 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>HAVE_STDINT_H;inline=__inline;_CRT_SECURE_NO_WARNINGS;WIN32;_CONSOLE;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../fdk-aac/libSYS/include;../fdk-aac/libAACenc/include;../missings;.;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./include;../missings;.;..</AdditionalIncludeDirectories>
       <StringPooling>true</StringPooling>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PreBuildEvent>
+      <Command>copy ..\fdk-aac\libAACdec\include\aacdecoder_lib.h include\fdk-aac\ 
+copy ..\fdk-aac\libAACenc\include\aacenc_lib.h include\fdk-aac\ 
+copy ..\fdk-aac\libSYS\include\FDK_Audio.h include\fdk-aac\
+copy ..\fdk-aac\libSYS\include\genericStds.h include\fdk-aac\ 
+copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\ </Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -69,7 +76,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>HAVE_STDINT_H;inline=__inline;_CRT_SECURE_NO_WARNINGS;WIN32;_CONSOLE;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../fdk-aac/libSYS/include;../fdk-aac/libAACenc/include;../missings;.;..</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>./include;../missings;.;..</AdditionalIncludeDirectories>
       <StringPooling>true</StringPooling>
     </ClCompile>
     <Link>
@@ -78,6 +85,13 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <PreBuildEvent>
+      <Command>copy ..\fdk-aac\libAACdec\include\aacdecoder_lib.h include\fdk-aac\ 
+copy ..\fdk-aac\libAACenc\include\aacenc_lib.h include\fdk-aac\ 
+copy ..\fdk-aac\libSYS\include\FDK_Audio.h include\fdk-aac\
+copy ..\fdk-aac\libSYS\include\genericStds.h include\fdk-aac\ 
+copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\ </Command>
+    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\missings\getopt.c" />
