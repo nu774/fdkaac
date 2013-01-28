@@ -32,7 +32,7 @@ AC_CHECK_TYPES([ptrdiff_t])
 
 AC_SYS_LARGEFILE
 AC_FUNC_FSEEKO
-AC_CHECK_FUNCS([gettimeofday nl_langinfo strdup _vscprintf])
+AC_CHECK_FUNCS([sigaction gettimeofday nl_langinfo strdup _vscprintf])
 AC_CHECK_FUNC(getopt_long)
 AM_CONDITIONAL([FDK_NO_GETOPT_LONG],[test "$ac_cv_func_getopt_long" != "yes"])
 AC_SEARCH_LIBS([aacEncOpen],[fdk-aac],[],[],[])

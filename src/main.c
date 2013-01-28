@@ -24,8 +24,13 @@
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#if HAVE_SIGACTION
+#include <signal.h>
+#endif
 #ifdef _WIN32
 #include <io.h>
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #endif
 #include "compat.h"
 #include "wav_reader.h"
@@ -35,6 +40,40 @@
 #include "version.h"
 
 #define PROGNAME "fdkaac"
+
+static volatile g_interrupted = 0;
+
+#if HAVE_SIGACTION
+static void signal_handler(int signum)
+{
+    g_interrupted = 1;
+}
+static void handle_signals(void)
+{
+    int i, sigs[] = { SIGINT, SIGHUP, SIGTERM };
+    for (i = 0; i < sizeof(sigs)/sizeof(sigs[0]); ++i) {
+        struct sigaction sa = { 0 };
+        sa.sa_handler = signal_handler;
+        sa.sa_flags |= SA_RESTART;
+        sigaction(sigs[i], &sa, 0);
+    }
+}
+#elif defined(_WIN32)
+static BOOL WINAPI signal_handler(DWORD type)
+{
+    g_interrupted = 1;
+    return TRUE;
+}
+
+static void handle_signals(void)
+{
+    SetConsoleCtrlHandler(signal_handler, TRUE);
+}
+#else
+static void handle_signals(void)
+{
+}
+#endif
 
 static
 int read_callback(void *cookie, void *data, uint32_t size)
@@ -462,7 +501,9 @@ int encode(wav_reader_t *wavf, HANDLE_AACENCODER encoder,
     ibuf = malloc(frame_length * format->bytes_per_frame);
     aacenc_progress_init(&progress, wav_get_length(wavf), format->sample_rate);
     do {
-        if (nread) {
+        if (g_interrupted)
+            nread = 0;
+        else if (nread) {
             if ((nread = wav_read_frames(wavf, ibuf, frame_length)) < 0) {
                 fprintf(stderr, "ERROR: read failed\n");
                 goto END;
@@ -821,6 +862,7 @@ int main(int argc, char **argv)
                        strerror(errno));
         goto END;
     }
+    handle_signals();
     if (!params.transport_format) {
         uint32_t scale;
         unsigned framelen = aacinfo.frameLength;
