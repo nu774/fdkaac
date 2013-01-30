@@ -42,3 +42,11 @@ can be found at http://code.google.com/p/mp4v2/wiki/iTunesMetadata
 For tags such as Artist where first char of fcc is copyright sign,
 you can skip first char and just say like --tag="ART:Foo Bar" or
 --tag-from-file=lyr:/path/to/your/lyrics.txt
+
+Currently, --tag-from-file just stores file contents into m4a without any
+character encoding / line terminater conversion.
+Therefore, only use UTF-8 (without BOM) when setting text tags by this option.
+
+On the other hand, --tag / --long-tag (and other command line arguments) are
+converted from locale character encoding to UTF-8 on Posix environment.
+On Windows, command line arguments are always treated as Unicode.
