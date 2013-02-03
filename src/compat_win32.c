@@ -15,6 +15,7 @@
 #include <assert.h>
 #include <io.h>
 #include <fcntl.h>
+#include <share.h>
 #include <sys/timeb.h>
 #include "compat.h"
 #define WIN32_LEAN_AND_MEAN
@@ -66,9 +67,12 @@ FILE *aacenc_fopen(const char *name, const char *mode)
         fp = (mode[0] == 'r') ? stdin : stdout;
         _setmode(_fileno(fp), _O_BINARY);
     } else {
+        int share = _SH_DENYRW;
+        if (strchr(mode, 'r') && !strchr(mode, '+'))
+            share = _SH_DENYWR;
         codepage_decode_wchar(CP_UTF8, name, &wname);
         codepage_decode_wchar(CP_UTF8, mode, &wmode);
-        fp = _wfopen(wname, wmode);
+        fp = _wfsopen(wname, wmode, share);
         free(wname);
         free(wmode);
     }
