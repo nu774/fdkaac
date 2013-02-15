@@ -41,7 +41,7 @@
 
 #define PROGNAME "fdkaac"
 
-static volatile g_interrupted = 0;
+static volatile int g_interrupted = 0;
 
 #if HAVE_SIGACTION
 static void signal_handler(int signum)
