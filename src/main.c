@@ -38,6 +38,7 @@
 #include "m4af.h"
 #include "progress.h"
 #include "version.h"
+#include "metadata.h"
 
 #define PROGNAME "fdkaac"
 
@@ -181,16 +182,17 @@ PROGNAME " %s\n"
 " --tag-from-file <fcc>:<filename>\n"
 "                              Same as above, but value is read from file.\n"
 " --long-tag <name>:<value>    Set arbitrary tag as iTunes custom metadata.\n"
+" --tag-from-json <filename[?dot_notation]>\n"
+"                              Read tags from JSON. By default, tags are\n"
+"                              assumed to be direct children of the root\n"
+"                              object(dictionary).\n"
+"                              Optionally, position of the dictionary\n"
+"                              that contains tags can be specified with\n"
+"                              dotted notation.\n"
+"                              Example:\n"
+"                                --tag-from-json /path/to/json?format.tags\n"
     , fdkaac_version);
 }
-
-typedef struct aacenc_tag_entry_t {
-    uint32_t tag;
-    const char *name;
-    const char *data;
-    uint32_t data_size;
-    int is_file_name;
-} aacenc_tag_entry_t;
 
 typedef struct aacenc_param_ex_t {
     AACENC_PARAMS
@@ -205,33 +207,10 @@ typedef struct aacenc_param_ex_t {
     unsigned raw_rate;
     const char *raw_format;
 
-    aacenc_tag_entry_t *tag_table;
-    unsigned tag_count;
-    unsigned tag_table_capacity;
-} aacenc_param_ex_t;
+    aacenc_tag_param_t tags;
 
-static
-void param_add_itmf_entry(aacenc_param_ex_t *params, uint32_t tag,
-                          const char *key, const char *value, uint32_t size,
-                          int is_file_name)
-{
-    aacenc_tag_entry_t *entry;
-    if (params->tag_count == params->tag_table_capacity) {
-        unsigned newsize = params->tag_table_capacity;
-        newsize = newsize ? newsize * 2 : 1;
-        params->tag_table =
-            realloc(params->tag_table, newsize * sizeof(aacenc_tag_entry_t));
-        params->tag_table_capacity = newsize;
-    }
-    entry = params->tag_table + params->tag_count;
-    entry->tag = tag;
-    if (tag == M4AF_FOURCC('-','-','-','-'))
-        entry->name = key;
-    entry->data = value;
-    entry->data_size = size;
-    entry->is_file_name = is_file_name;
-    params->tag_count++;
-}
+    char *json_filename;
+} aacenc_param_ex_t;
 
 static
 int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
@@ -245,6 +224,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
 #define OPT_SHORT_TAG            M4AF_FOURCC('s','t','a','g')
 #define OPT_SHORT_TAG_FILE       M4AF_FOURCC('s','t','g','f')
 #define OPT_LONG_TAG             M4AF_FOURCC('l','t','a','g')
+#define OPT_TAG_FROM_JSON        M4AF_FOURCC('t','f','j','s')
 
     static struct option long_options[] = {
         { "help",             no_argument,       0, 'h' },
@@ -282,6 +262,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "tag",              required_argument, 0, OPT_SHORT_TAG          },
         { "tag-from-file",    required_argument, 0, OPT_SHORT_TAG_FILE     },
         { "long-tag",         required_argument, 0, OPT_LONG_TAG           },
+        { "tag-from-json",    required_argument, 0, OPT_TAG_FROM_JSON      },
         { 0,                  0,                 0, 0                      },
     };
     params->afterburner = 1;
@@ -395,7 +376,8 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         case M4AF_TAG_TRACK:
         case M4AF_TAG_DISK:
         case M4AF_TAG_TEMPO:
-            param_add_itmf_entry(params, ch, 0, optarg, strlen(optarg), 0);
+            aacenc_param_add_itmf_entry(&params->tags, ch, 0, optarg,
+                                        strlen(optarg), 0);
             break;
         case OPT_SHORT_TAG:
         case OPT_SHORT_TAG_FILE:
@@ -428,9 +410,13 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
                     for (; *optarg; ++optarg)
                         fcc = ((fcc << 8) | (*optarg & 0xff));
                 }
-                param_add_itmf_entry(params, fcc, optarg, val, strlen(val),
-                                     ch == OPT_SHORT_TAG_FILE);
+                aacenc_param_add_itmf_entry(&params->tags, fcc, optarg,
+                                            val, strlen(val),
+                                            ch == OPT_SHORT_TAG_FILE);
             }
+            break;
+        case OPT_TAG_FROM_JSON:
+            params->json_filename = optarg;
             break;
         default:
             return usage(), -1;
@@ -539,155 +525,6 @@ END:
 }
 
 static
-char *load_tag_from_file(const char *path, uint32_t *data_size)
-{
-    FILE *fp = 0;
-    char *data = 0;
-    int64_t size;
-
-    if ((fp = aacenc_fopen(path, "rb")) == NULL) {
-        aacenc_fprintf(stderr, "WARNING: %s: %s\n", path, strerror(errno));
-        goto END;
-    }
-    fseeko(fp, 0, SEEK_END);
-    size = ftello(fp);
-    if (size > 5*1024*1024) {
-        aacenc_fprintf(stderr, "WARNING: %s: size too large\n", path);
-        goto END;
-    }
-    fseeko(fp, 0, SEEK_SET);
-    data = malloc(size + 1);
-    if (data) fread(data, 1, size, fp);
-    data[size] = 0;
-    *data_size = (uint32_t)size;
-END:
-    if (fp) fclose(fp);
-    return data;
-}
-
-static
-void put_tag_entry(m4af_ctx_t *m4af, const aacenc_tag_entry_t *tag)
-{
-    unsigned m, n = 0;
-    const char *data = tag->data;
-    uint32_t data_size = tag->data_size;
-    char *file_contents = 0;
-
-    if (tag->is_file_name) {
-        data = file_contents = load_tag_from_file(tag->data, &data_size);
-        if (!data) return;
-    }
-    switch (tag->tag) {
-    case M4AF_TAG_TRACK:
-        if (sscanf(data, "%u/%u", &m, &n) >= 1)
-            m4af_add_itmf_track_tag(m4af, m, n);
-        break;
-    case M4AF_TAG_DISK:
-        if (sscanf(data, "%u/%u", &m, &n) >= 1)
-            m4af_add_itmf_disk_tag(m4af, m, n);
-        break;
-    case M4AF_TAG_GENRE_ID3:
-        if (sscanf(data, "%u", &n) == 1)
-            m4af_add_itmf_genre_tag(m4af, n);
-        break;
-    case M4AF_TAG_TEMPO:
-        if (sscanf(data, "%u", &n) == 1)
-            m4af_add_itmf_int16_tag(m4af, tag->tag, n);
-        break;
-    case M4AF_TAG_COMPILATION:
-    case M4AF_FOURCC('a','k','I','D'):
-    case M4AF_FOURCC('h','d','v','d'):
-    case M4AF_FOURCC('p','c','s','t'):
-    case M4AF_FOURCC('p','g','a','p'):
-    case M4AF_FOURCC('r','t','n','g'):
-    case M4AF_FOURCC('s','t','i','k'):
-        if (sscanf(data, "%u", &n) == 1)
-            m4af_add_itmf_int8_tag(m4af, tag->tag, n);
-        break;
-    case M4AF_FOURCC('a','t','I','D'):
-    case M4AF_FOURCC('c','m','I','D'):
-    case M4AF_FOURCC('c','n','I','D'):
-    case M4AF_FOURCC('g','e','I','D'):
-    case M4AF_FOURCC('s','f','I','D'):
-    case M4AF_FOURCC('t','v','s','n'):
-    case M4AF_FOURCC('t','v','s','s'):
-        if (sscanf(data, "%u", &n) == 1)
-            m4af_add_itmf_int32_tag(m4af, tag->tag, n);
-        break;
-    case M4AF_FOURCC('p','l','I','D'):
-        {
-            int64_t qn;
-            if (sscanf(data, "%" SCNd64, &qn) == 1)
-                m4af_add_itmf_int64_tag(m4af, tag->tag, qn);
-            break;
-        }
-    case M4AF_TAG_ARTWORK:
-        {
-            int data_type = 0;
-            if (!memcmp(data, "GIF", 3))
-                data_type = M4AF_GIF;
-            else if (!memcmp(data, "\xff\xd8\xff", 3))
-                data_type = M4AF_JPEG;
-            else if (!memcmp(data, "\x89PNG", 4))
-                data_type = M4AF_PNG;
-            if (data_type)
-                m4af_add_itmf_short_tag(m4af, tag->tag, data_type,
-                                        data, data_size);
-            break;
-        }
-    case M4AF_FOURCC('-','-','-','-'):
-        {
-            char *u8 = aacenc_to_utf8(data);
-            m4af_add_itmf_long_tag(m4af, tag->name, u8);
-            free(u8);
-            break;
-        }
-    case M4AF_TAG_TITLE:
-    case M4AF_TAG_ARTIST:
-    case M4AF_TAG_ALBUM:
-    case M4AF_TAG_GENRE:
-    case M4AF_TAG_DATE:
-    case M4AF_TAG_COMPOSER:
-    case M4AF_TAG_GROUPING:
-    case M4AF_TAG_COMMENT:
-    case M4AF_TAG_LYRICS:
-    case M4AF_TAG_TOOL:
-    case M4AF_TAG_ALBUM_ARTIST:
-    case M4AF_TAG_DESCRIPTION:
-    case M4AF_TAG_LONG_DESCRIPTION:
-    case M4AF_TAG_COPYRIGHT:
-    case M4AF_FOURCC('a','p','I','D'):
-    case M4AF_FOURCC('c','a','t','g'):
-    case M4AF_FOURCC('k','e','y','w'):
-    case M4AF_FOURCC('p','u','r','d'):
-    case M4AF_FOURCC('p','u','r','l'):
-    case M4AF_FOURCC('s','o','a','a'):
-    case M4AF_FOURCC('s','o','a','l'):
-    case M4AF_FOURCC('s','o','a','r'):
-    case M4AF_FOURCC('s','o','c','o'):
-    case M4AF_FOURCC('s','o','n','m'):
-    case M4AF_FOURCC('s','o','s','n'):
-    case M4AF_FOURCC('t','v','e','n'):
-    case M4AF_FOURCC('t','v','n','n'):
-    case M4AF_FOURCC('t','v','s','h'):
-    case M4AF_FOURCC('x','i','d',' '):
-    case M4AF_FOURCC('\xa9','e','n','c'):
-    case M4AF_FOURCC('\xa9','s','t','3'):
-        {
-            char *u8 = aacenc_to_utf8(data);
-            m4af_add_itmf_string_tag(m4af, tag->tag, u8);
-            free(u8);
-            break;
-        }
-    default:
-        fprintf(stderr, "WARNING: unknown/unsupported tag: %c%c%c%c\n",
-                tag->tag >> 24, (tag->tag >> 16) & 0xff,
-                (tag->tag >> 8) & 0xff, tag->tag & 0xff);
-    }
-    if (file_contents) free(file_contents);
-}
-
-static
 void put_tool_tag(m4af_ctx_t *m4af, const aacenc_param_ex_t *params,
                   HANDLE_AACENCODER encoder)
 {
@@ -720,9 +557,13 @@ int finalize_m4a(m4af_ctx_t *m4af, const aacenc_param_ex_t *params,
                  HANDLE_AACENCODER encoder)
 {
     unsigned i;
-    aacenc_tag_entry_t *tag = params->tag_table;
-    for (i = 0; i < params->tag_count; ++i, ++tag)
-        put_tag_entry(m4af, tag);
+    aacenc_tag_entry_t *tag = params->tags.tag_table;
+
+    if (params->json_filename)
+        aacenc_put_tags_from_json(m4af, params->json_filename);
+
+    for (i = 0; i < params->tags.tag_count; ++i, ++tag)
+        aacenc_put_tag_entry(m4af, tag);
 
     put_tool_tag(m4af, params, encoder);
 
@@ -901,7 +742,7 @@ END:
     if (ofp) fclose(ofp);
     if (encoder) aacEncClose(&encoder);
     if (output_filename) free(output_filename);
-    if (params.tag_table) free(params.tag_table);
+    if (params.tags.tag_table) free(params.tags.tag_table);
 
     return result;
 }

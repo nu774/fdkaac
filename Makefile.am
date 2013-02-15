@@ -8,6 +8,8 @@ fdkaac_SOURCES = \
     src/lpcm.c       \
     src/m4af.c       \
     src/main.c       \
+    src/metadata.c   \
+    src/parson.c     \
     src/progress.c   \
     src/wav_reader.c
 
