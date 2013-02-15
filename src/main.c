@@ -464,7 +464,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
 };
 
 static
-int write_sample(FILE *ofp, m4af_writer_t *m4af,
+int write_sample(FILE *ofp, m4af_ctx_t *m4af,
                  const void *data, uint32_t size, uint32_t duration)
 {
     if (!m4af) {
@@ -482,7 +482,7 @@ int write_sample(FILE *ofp, m4af_writer_t *m4af,
 
 static
 int encode(wav_reader_t *wavf, HANDLE_AACENCODER encoder,
-           uint32_t frame_length, FILE *ofp, m4af_writer_t *m4af,
+           uint32_t frame_length, FILE *ofp, m4af_ctx_t *m4af,
            int show_progress)
 {
     uint8_t *ibuf = 0;
@@ -566,7 +566,7 @@ END:
 }
 
 static
-void put_tag_entry(m4af_writer_t *m4af, const aacenc_tag_entry_t *tag)
+void put_tag_entry(m4af_ctx_t *m4af, const aacenc_tag_entry_t *tag)
 {
     unsigned m, n = 0;
     const char *data = tag->data;
@@ -688,7 +688,7 @@ void put_tag_entry(m4af_writer_t *m4af, const aacenc_tag_entry_t *tag)
 }
 
 static
-void put_tool_tag(m4af_writer_t *m4af, const aacenc_param_ex_t *params,
+void put_tool_tag(m4af_ctx_t *m4af, const aacenc_param_ex_t *params,
                   HANDLE_AACENCODER encoder)
 {
     char tool_info[256];
@@ -716,7 +716,7 @@ void put_tool_tag(m4af_writer_t *m4af, const aacenc_param_ex_t *params,
 }
 
 static
-int finalize_m4a(m4af_writer_t *m4af, const aacenc_param_ex_t *params,
+int finalize_m4a(m4af_ctx_t *m4af, const aacenc_param_ex_t *params,
                  HANDLE_AACENCODER encoder)
 {
     unsigned i;
@@ -792,8 +792,8 @@ int parse_raw_spec(const char *spec, pcm_sample_description_t *desc)
 int main(int argc, char **argv)
 {
     wav_io_context_t wav_io = { read_callback, seek_callback, tell_callback };
-    m4af_io_callbacks_t m4af_io = {
-        write_callback, seek_callback, tell_callback };
+    m4af_io_callbacks_t
+        m4af_io = { 0, write_callback, seek_callback, tell_callback };
     aacenc_param_ex_t params = { 0 };
 
     int result = 2;
@@ -803,7 +803,7 @@ int main(int argc, char **argv)
     wav_reader_t *wavf = 0;
     HANDLE_AACENCODER encoder = 0;
     AACENC_InfoStruct aacinfo = { 0 };
-    m4af_writer_t *m4af = 0;
+    m4af_ctx_t *m4af = 0;
     const pcm_sample_description_t *sample_format;
     int downsampled_timescale = 0;
     int frame_count = 0;
@@ -873,7 +873,8 @@ int main(int argc, char **argv)
         scale = sample_format->sample_rate >> downsampled_timescale;
         if ((m4af = m4af_create(M4AF_CODEC_MP4A, scale, &m4af_io, ofp)) < 0)
             goto END;
-        m4af_decoder_specific_info(m4af, 0, aacinfo.confBuf, aacinfo.confSize);
+        m4af_set_decoder_specific_info(m4af, 0, aacinfo.confBuf,
+                                       aacinfo.confSize);
         m4af_set_fixed_frame_duration(m4af, 0,
                                       framelen >> downsampled_timescale);
         m4af_begin_write(m4af);

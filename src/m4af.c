@@ -8,15 +8,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <time.h>
 #if HAVE_STDINT_H
 #  include <stdint.h>
+#endif
+#if HAVE_INTTYPES_H
+#  include <inttypes.h>
+#elif defined _MSC_VER
+#  define PRId64 "I64d"
 #endif
 #include "m4af.h"
 #include "m4af_endian.h"
 
 #define m4af_realloc(memory,size) realloc(memory, size)
 #define m4af_free(memory) free(memory)
+
+#define M4AF_ATOM_WILD  0xffffffff
 
 typedef struct m4af_sample_entry_t {
     uint32_t size;
@@ -29,16 +37,6 @@ typedef struct m4af_chunk_entry_t {
     uint32_t samples_per_chunk;
     uint32_t duration;
 } m4af_chunk_entry_t;
-
-typedef struct m4af_itmf_entry_t {
-    uint32_t type; /* fcc */
-    union {
-        uint32_t type_code;
-        char *name;
-    } u;
-    char *data;
-    uint32_t data_size;
-} m4af_itmf_entry_t;
 
 typedef struct m4af_track_t {
     uint32_t codec;
@@ -66,9 +64,16 @@ typedef struct m4af_track_t {
     uint8_t *chunk_buffer;
     uint32_t chunk_size;
     uint32_t chunk_capacity;
+
+    /* temporary, to help parsing */
+    uint64_t stsc_pos;
+    uint64_t stsc_size;
+
+    uint64_t stts_pos;
+    uint64_t stts_size;
 } m4af_track_t;
 
-struct m4af_writer_t {
+struct m4af_ctx_t {
     uint32_t timescale;
     int64_t creation_time;
     int64_t modification_time;
@@ -84,8 +89,15 @@ struct m4af_writer_t {
     void *io_cookie;
 
     uint16_t num_tracks;
-    m4af_track_t track[1];
+    m4af_track_t track[2];
+
+    m4af_itmf_entry_t current_tag;
 };
+
+typedef struct m4af_box_parser_t {
+    uint32_t name;
+    int (*handler)(m4af_ctx_t *ctx, uint32_t name, uint64_t size);
+} m4af_box_parser_t;
 
 static
 int64_t m4af_timestamp(void)
@@ -110,57 +122,55 @@ uint32_t m4af_roundup(uint32_t n)
 }
 
 static
-int64_t m4af_tell(m4af_writer_t *ctx)
+int64_t m4af_tell(m4af_ctx_t *ctx)
 {
     int64_t pos = -1;
-    if (!ctx->last_error && (pos = ctx->io.tell(ctx->io_cookie)) < 0)
+    if ((pos = ctx->io.tell(ctx->io_cookie)) < 0)
         ctx->last_error = M4AF_IO_ERROR;
     return pos;
 }
 
 static
-int m4af_set_pos(m4af_writer_t *ctx, int64_t pos)
+int m4af_set_pos(m4af_ctx_t *ctx, int64_t pos)
 {
     int rc = -1;
-    if (!ctx->last_error &&
-        (rc = ctx->io.seek(ctx->io_cookie, pos, SEEK_SET)) < 0)
+    if ((rc = ctx->io.seek(ctx->io_cookie, pos, SEEK_SET)) < 0)
         ctx->last_error = M4AF_IO_ERROR;
     return rc;
 }
 
 static
-int m4af_write(m4af_writer_t *ctx, const void *data, uint32_t size)
+int m4af_write(m4af_ctx_t *ctx, const void *data, uint32_t size)
 {
     int rc = -1;
-    if (!ctx->last_error &&
-        (rc = ctx->io.write(ctx->io_cookie, data, size)) < 0)
+    if ((rc = ctx->io.write(ctx->io_cookie, data, size)) < 0)
         ctx->last_error = M4AF_IO_ERROR;
     return rc;
 }
 
 static
-int m4af_write32(m4af_writer_t *ctx, uint32_t data)
+int m4af_write32(m4af_ctx_t *ctx, uint32_t data)
 {
     data = m4af_htob32(data);
     return m4af_write(ctx, &data, 4);
 }
 
 static
-int m4af_write64(m4af_writer_t *ctx, uint64_t data)
+int m4af_write64(m4af_ctx_t *ctx, uint64_t data)
 {
     data = m4af_htob64(data);
     return m4af_write(ctx, &data, 8);
 }
 
 static
-int m4af_write24(m4af_writer_t *ctx, uint32_t data)
+int m4af_write24(m4af_ctx_t *ctx, uint32_t data)
 {
     data = m4af_htob32(data << 8);
     return m4af_write(ctx, &data, 3);
 }
 
 static
-void m4af_write32_at(m4af_writer_t *ctx, int64_t pos, uint32_t value)
+void m4af_write32_at(m4af_ctx_t *ctx, int64_t pos, uint32_t value)
 {
     int64_t current_pos = m4af_tell(ctx);
     m4af_set_pos(ctx, pos);
@@ -168,18 +178,18 @@ void m4af_write32_at(m4af_writer_t *ctx, int64_t pos, uint32_t value)
     m4af_set_pos(ctx, current_pos);
 }
 
-m4af_writer_t *m4af_create(uint32_t codec, uint32_t timescale,
-                           m4af_io_callbacks_t *io, void *io_cookie)
+m4af_ctx_t *m4af_create(uint32_t codec, uint32_t timescale,
+                        m4af_io_callbacks_t *io, void *io_cookie)
 {
-    m4af_writer_t *ctx;
+    m4af_ctx_t *ctx;
     int64_t timestamp;
 
     if (codec != M4AF_FOURCC('m','p','4','a') &&
         codec != M4AF_FOURCC('a','l','a','c'))
         return 0;
-    if ((ctx = m4af_realloc(0, sizeof(m4af_writer_t))) == 0)
+    if ((ctx = m4af_realloc(0, sizeof(m4af_ctx_t))) == 0)
         return 0;
-    memset(ctx, 0, sizeof(m4af_writer_t));
+    memset(ctx, 0, sizeof(m4af_ctx_t));
     memcpy(&ctx->io, io, sizeof(m4af_io_callbacks_t));
     ctx->io_cookie = io_cookie;
     ctx->timescale = timescale;
@@ -194,31 +204,72 @@ m4af_writer_t *m4af_create(uint32_t codec, uint32_t timescale,
     return ctx;
 }
 
-void m4af_set_fixed_frame_duration(m4af_writer_t *ctx, int track_idx,
+static
+void m4af_free_itmf_table(m4af_ctx_t *ctx)
+{
+    uint32_t i;
+    m4af_itmf_entry_t *entry = ctx->itmf_table;
+    for (i = 0; i < ctx->num_tags; ++i, ++entry) {
+        if (entry->fcc == M4AF_FOURCC('-','-','-','-'))
+            m4af_free(entry->name);
+        m4af_free(entry->data);
+    }
+    m4af_free(ctx->itmf_table);
+}
+
+static
+void m4af_clear_track(m4af_ctx_t *ctx, int track_idx)
+{
+    m4af_track_t *track = ctx->track + track_idx;
+    if (track->decSpecificInfo)
+        m4af_free(track->decSpecificInfo);
+    if (track->sample_table)
+        m4af_free(track->sample_table);
+    if (track->chunk_table)
+        m4af_free(track->chunk_table);
+    if (track->chunk_buffer)
+        m4af_free(track->chunk_buffer);
+    memset(track, 0, sizeof(m4af_track_t));
+}
+
+void m4af_teardown(m4af_ctx_t **ctxp)
+{
+    unsigned i;
+    m4af_ctx_t *ctx = *ctxp;
+    for (i = 0; i < ctx->num_tracks; ++i)
+        m4af_clear_track(ctx, i);
+    if (ctx->itmf_table)
+        m4af_free_itmf_table(ctx);
+    m4af_free(ctx);
+    *ctxp = 0;
+}
+
+void m4af_set_fixed_frame_duration(m4af_ctx_t *ctx, uint32_t track_idx,
                                    uint32_t length)
 {
     ctx->track[track_idx].frame_duration = length;
 }
 
-int m4af_decoder_specific_info(m4af_writer_t *ctx, int track_idx,
-                               uint8_t *data, uint32_t size)
+int m4af_set_decoder_specific_info(m4af_ctx_t *ctx, uint32_t track_idx,
+                                   uint8_t *data, uint32_t size)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     if (size > track->decSpecificInfoSize) {
         uint8_t *memory = m4af_realloc(track->decSpecificInfo, size);
         if (memory == 0) {
             ctx->last_error = M4AF_NO_MEMORY;
-            return -1;
+            goto DONE;
         }
         track->decSpecificInfo = memory;
     }
     if (size > 0)
         memcpy(track->decSpecificInfo, data, size);
     track->decSpecificInfoSize = size;
-    return 0;
+DONE:
+    return ctx->last_error;
 }
 
-void m4af_set_priming(m4af_writer_t *ctx, int track_idx,
+void m4af_set_priming(m4af_ctx_t *ctx, uint32_t track_idx,
                       uint32_t encoder_delay, uint32_t padding)
 {
     m4af_track_t *track = &ctx->track[track_idx];
@@ -227,7 +278,7 @@ void m4af_set_priming(m4af_writer_t *ctx, int track_idx,
 }
 
 static
-int m4af_add_sample_entry(m4af_writer_t *ctx, int track_idx,
+int m4af_add_sample_entry(m4af_ctx_t *ctx, uint32_t track_idx,
                           uint32_t size, uint32_t delta)
 {
     m4af_track_t *track = &ctx->track[track_idx];
@@ -254,7 +305,7 @@ int m4af_add_sample_entry(m4af_writer_t *ctx, int track_idx,
 }
 
 static
-int m4af_flush_chunk(m4af_writer_t *ctx, int track_idx)
+int m4af_flush_chunk(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     m4af_chunk_entry_t *entry;
@@ -269,7 +320,28 @@ int m4af_flush_chunk(m4af_writer_t *ctx, int track_idx)
 }
 
 static
-int m4af_update_chunk_table(m4af_writer_t *ctx, int track_idx,
+int m4af_add_chunk_entry(m4af_ctx_t *ctx, uint32_t track_idx)
+{
+    m4af_track_t *track = &ctx->track[track_idx];
+    m4af_chunk_entry_t *entry;
+    if (track->num_chunks == track->chunk_table_capacity) {
+        uint32_t new_size = track->chunk_table_capacity;
+        new_size = new_size ? new_size * 2 : 1;
+        entry = m4af_realloc(track->chunk_table, new_size * sizeof(*entry));
+        if (entry == 0) {
+            ctx->last_error = M4AF_NO_MEMORY;
+            return -1;
+        }
+        track->chunk_table = entry;
+        track->chunk_table_capacity = new_size;
+    }
+    memset(&track->chunk_table[track->num_chunks++], 0,
+           sizeof(m4af_chunk_entry_t));
+    return 0;
+}
+
+static
+int m4af_update_chunk_table(m4af_ctx_t *ctx, uint32_t track_idx,
                             uint32_t size, uint32_t delta)
 {
     m4af_track_t *track = &ctx->track[track_idx];
@@ -287,19 +359,8 @@ int m4af_update_chunk_table(m4af_writer_t *ctx, int track_idx,
     }
     if (add_new_chunk) {
         m4af_flush_chunk(ctx, track_idx);
-        if (track->num_chunks == track->chunk_table_capacity) {
-            uint32_t new_size = track->chunk_table_capacity;
-            new_size = new_size ? new_size * 2 : 1;
-            entry = m4af_realloc(track->chunk_table, new_size * sizeof(*entry));
-            if (entry == 0) {
-                ctx->last_error = M4AF_NO_MEMORY;
-                return -1;
-            }
-            track->chunk_table = entry;
-            track->chunk_table_capacity = new_size;
-        }
-        memset(&track->chunk_table[track->num_chunks++], 0,
-               sizeof(m4af_chunk_entry_t));
+        if (m4af_add_chunk_entry(ctx, track_idx) < 0)
+            return -1;
     }
     entry = &track->chunk_table[track->num_chunks - 1];
     entry->size += size;
@@ -309,7 +370,7 @@ int m4af_update_chunk_table(m4af_writer_t *ctx, int track_idx,
 }
 
 static
-void m4af_update_max_bitrate(m4af_writer_t *ctx, int track_idx)
+void m4af_update_max_bitrate(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     uint32_t duration = 0, size = 0, bitrate;
@@ -325,7 +386,7 @@ void m4af_update_max_bitrate(m4af_writer_t *ctx, int track_idx)
 }
 
 static
-int m4af_append_sample_to_chunk(m4af_writer_t *ctx, int track_idx,
+int m4af_append_sample_to_chunk(m4af_ctx_t *ctx, uint32_t track_idx,
                                 const void *data, uint32_t size)
 {
     m4af_track_t *track = &ctx->track[track_idx];
@@ -348,7 +409,7 @@ int m4af_append_sample_to_chunk(m4af_writer_t *ctx, int track_idx,
     return 0;
 }
 
-int m4af_write_sample(m4af_writer_t *ctx, int track_idx, const void *data,
+int m4af_write_sample(m4af_ctx_t *ctx, uint32_t track_idx, const void *data,
                       uint32_t size, uint32_t duration)
 {
     m4af_track_t *track = &ctx->track[track_idx];
@@ -361,11 +422,11 @@ int m4af_write_sample(m4af_writer_t *ctx, int track_idx, const void *data,
     m4af_update_chunk_table(ctx, track_idx, size, duration);
     m4af_update_max_bitrate(ctx, track_idx);
     m4af_append_sample_to_chunk(ctx, track_idx, data, size);
-    return ctx->last_error ? -1 : 0;
+    return ctx->last_error;
 }
 
 static
-int m4af_add_itmf_entry(m4af_writer_t *ctx)
+int m4af_add_itmf_entry(m4af_ctx_t *ctx)
 {
     m4af_itmf_entry_t *entry;
     if (ctx->num_tags == ctx->itmf_table_capacity) {
@@ -383,7 +444,7 @@ int m4af_add_itmf_entry(m4af_writer_t *ctx)
     return 0;
 }
 
-int m4af_add_itmf_long_tag(m4af_writer_t *ctx, const char *name,
+int m4af_add_itmf_long_tag(m4af_ctx_t *ctx, const char *name,
                            const char *data)
 {
     m4af_itmf_entry_t *entry;
@@ -400,8 +461,9 @@ int m4af_add_itmf_long_tag(m4af_writer_t *ctx, const char *name,
     memcpy(name_copy, name, name_len + 1);
     memcpy(data_copy, data, data_len);
     entry = ctx->itmf_table + ctx->num_tags - 1;
-    entry->type = M4AF_FOURCC('-','-','-','-');
-    entry->u.name = name_copy;
+    entry->fcc = M4AF_FOURCC('-','-','-','-');
+    entry->name = name_copy;
+    entry->type_code = M4AF_UTF8;
     entry->data = data_copy;
     entry->data_size = data_len;
     return 0;
@@ -410,10 +472,10 @@ FAIL:
         m4af_free(name_copy);
     if (data_copy)
         m4af_free(data_copy);
-    return -1;
+    return ctx->last_error;
 }
 
-int m4af_add_itmf_short_tag(m4af_writer_t *ctx, uint32_t type,
+int m4af_add_itmf_short_tag(m4af_ctx_t *ctx, uint32_t fcc,
                             uint32_t type_code, const void *data,
                             uint32_t data_size)
 {
@@ -426,8 +488,9 @@ int m4af_add_itmf_short_tag(m4af_writer_t *ctx, uint32_t type,
     if (m4af_add_itmf_entry(ctx) < 0)
         goto FAIL;
     entry = ctx->itmf_table + ctx->num_tags - 1;
-    entry->type = type;
-    entry->u.type_code = type_code;
+    entry->fcc = fcc;
+    entry->name = 0;
+    entry->type_code = type_code;
     memcpy(data_copy, data, data_size);
     entry->data = data_copy;
     entry->data_size = data_size;
@@ -435,40 +498,39 @@ int m4af_add_itmf_short_tag(m4af_writer_t *ctx, uint32_t type,
 FAIL:
     if (data_copy)
         m4af_free(data_copy);
-    return -1;
+    return ctx->last_error;
 }
 
-int m4af_add_itmf_string_tag(m4af_writer_t *ctx, uint32_t type,
-                             const char *data)
+int m4af_add_itmf_string_tag(m4af_ctx_t *ctx, uint32_t fcc, const char *data)
 {
-    return m4af_add_itmf_short_tag(ctx, type, M4AF_UTF8, data, strlen(data));
+    return m4af_add_itmf_short_tag(ctx, fcc, M4AF_UTF8, data, strlen(data));
 }
 
-int m4af_add_itmf_int8_tag(m4af_writer_t *ctx, uint32_t type, int value)
+int m4af_add_itmf_int8_tag(m4af_ctx_t *ctx, uint32_t fcc, int value)
 {
     uint8_t data = value;
-    return m4af_add_itmf_short_tag(ctx, type, M4AF_INTEGER, &data, 1);
+    return m4af_add_itmf_short_tag(ctx, fcc, M4AF_INTEGER, &data, 1);
 }
 
-int m4af_add_itmf_int16_tag(m4af_writer_t *ctx, uint32_t type, int value)
+int m4af_add_itmf_int16_tag(m4af_ctx_t *ctx, uint32_t fcc, int value)
 {
     uint16_t data = m4af_htob16(value);
-    return m4af_add_itmf_short_tag(ctx, type, M4AF_INTEGER, &data, 2);
+    return m4af_add_itmf_short_tag(ctx, fcc, M4AF_INTEGER, &data, 2);
 }
 
-int m4af_add_itmf_int32_tag(m4af_writer_t *ctx, uint32_t type, uint32_t value)
+int m4af_add_itmf_int32_tag(m4af_ctx_t *ctx, uint32_t fcc, uint32_t value)
 {
     uint32_t data = m4af_htob32(value);
-    return m4af_add_itmf_short_tag(ctx, type, M4AF_INTEGER, &data, 4);
+    return m4af_add_itmf_short_tag(ctx, fcc, M4AF_INTEGER, &data, 4);
 }
 
-int m4af_add_itmf_int64_tag(m4af_writer_t *ctx, uint32_t type, uint64_t value)
+int m4af_add_itmf_int64_tag(m4af_ctx_t *ctx, uint32_t fcc, uint64_t value)
 {
     uint64_t data = m4af_htob64(value);
-    return m4af_add_itmf_short_tag(ctx, type, M4AF_INTEGER, &data, 8);
+    return m4af_add_itmf_short_tag(ctx, fcc, M4AF_INTEGER, &data, 8);
 }
 
-int m4af_add_itmf_track_tag(m4af_writer_t *ctx, int track, int total)
+int m4af_add_itmf_track_tag(m4af_ctx_t *ctx, int track, int total)
 {
     uint16_t data[4] = { 0 };
     data[1] = m4af_htob16(track);
@@ -477,7 +539,7 @@ int m4af_add_itmf_track_tag(m4af_writer_t *ctx, int track, int total)
                                    M4AF_IMPLICIT, &data, 8);
 }
 
-int m4af_add_itmf_disk_tag(m4af_writer_t *ctx, int disk, int total)
+int m4af_add_itmf_disk_tag(m4af_ctx_t *ctx, int disk, int total)
 {
     uint16_t data[3] = { 0 };
     data[1] = m4af_htob16(disk);
@@ -486,7 +548,7 @@ int m4af_add_itmf_disk_tag(m4af_writer_t *ctx, int disk, int total)
                                    M4AF_IMPLICIT, &data, 6);
 }
 
-int m4af_add_itmf_genre_tag(m4af_writer_t *ctx, int genre)
+int m4af_add_itmf_genre_tag(m4af_ctx_t *ctx, int genre)
 {
     uint16_t data = m4af_htob16(genre);
     return m4af_add_itmf_short_tag(ctx, M4AF_FOURCC('g','n','r','e'),
@@ -494,20 +556,20 @@ int m4af_add_itmf_genre_tag(m4af_writer_t *ctx, int genre)
 }
 
 static
-int m4af_set_iTunSMPB(m4af_writer_t *ctx)
+int m4af_set_iTunSMPB(m4af_ctx_t *ctx)
 {
-    const char *template = " 00000000 %08X %08X %08X%08X 00000000 00000000 "
+    const char *fmt = " 00000000 %08X %08X %08X%08X 00000000 00000000 "
         "00000000 00000000 00000000 00000000 00000000 00000000";
     m4af_track_t *track = &ctx->track[0];
     char buf[256];
     uint64_t length = track->duration - track->encoder_delay - track->padding;
-    sprintf(buf, template, track->encoder_delay, track->padding,
+    sprintf(buf, fmt, track->encoder_delay, track->padding,
             (uint32_t)(length >> 32), (uint32_t)length);
     return m4af_add_itmf_long_tag(ctx, "iTunSMPB", buf);
 }
 
 static
-void m4af_update_size(m4af_writer_t *ctx, int64_t pos)
+void m4af_update_box_size(m4af_ctx_t *ctx, int64_t pos)
 {
     int64_t current_pos = m4af_tell(ctx);
     m4af_set_pos(ctx, pos);
@@ -516,7 +578,7 @@ void m4af_update_size(m4af_writer_t *ctx, int64_t pos)
 }
 
 static
-void m4af_descriptor(m4af_writer_t *ctx, uint32_t tag, uint32_t size)
+void m4af_write_descriptor(m4af_ctx_t *ctx, uint32_t tag, uint32_t size)
 {
     uint8_t buf[5];
     buf[0] = tag;
@@ -528,13 +590,13 @@ void m4af_descriptor(m4af_writer_t *ctx, uint32_t tag, uint32_t size)
 }
 
 static
-void m4af_ftyp_box(m4af_writer_t *ctx)
+void m4af_write_ftyp_box(m4af_ctx_t *ctx)
 {
     m4af_write(ctx, "\0\0\0\040""ftypM4A \0\0\0\0M4A mp42isom\0\0\0\0", 32);
 }
 
 static
-void m4af_free_box(m4af_writer_t *ctx, uint32_t size)
+void m4af_write_free_box(m4af_ctx_t *ctx, uint32_t size)
 {
     int64_t pos = m4af_tell(ctx);
     m4af_write32(ctx, size + 8);
@@ -543,17 +605,17 @@ void m4af_free_box(m4af_writer_t *ctx, uint32_t size)
         m4af_set_pos(ctx, pos + size + 8);
 }
 
-int m4af_begin_write(m4af_writer_t *ctx)
+int m4af_begin_write(m4af_ctx_t *ctx)
 {
-    m4af_ftyp_box(ctx);
-    m4af_free_box(ctx, 0);
+    m4af_write_ftyp_box(ctx);
+    m4af_write_free_box(ctx, 0);
     m4af_write(ctx, "\0\0\0\0mdat", 8);
     ctx->mdat_pos = m4af_tell(ctx);
-    return ctx->last_error ? -1 : 0;
+    return ctx->last_error;
 }
 
 static
-void m4af_stco_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_stco_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     uint32_t i;
@@ -571,11 +633,11 @@ void m4af_stco_box(m4af_writer_t *ctx, int track_idx)
         else
             m4af_write32(ctx, index->offset);
     }
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_stsz_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_stsz_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     m4af_sample_entry_t *index = track->sample_table;
@@ -591,11 +653,11 @@ void m4af_stsz_box(m4af_writer_t *ctx, int track_idx)
     m4af_write32(ctx, track->num_samples);
     for (i = 0; i < track->num_samples; ++i, ++index)
         m4af_write32(ctx, index->size);
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_stsc_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_stsc_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     m4af_chunk_entry_t *index = track->chunk_table;
@@ -619,11 +681,11 @@ void m4af_stsc_box(m4af_writer_t *ctx, int track_idx)
         }
     }
     m4af_write32_at(ctx, pos + 12, entry_count);
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_stts_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_stts_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     m4af_sample_entry_t *index = track->sample_table;
@@ -655,11 +717,11 @@ void m4af_stts_box(m4af_writer_t *ctx, int track_idx)
         m4af_write32(ctx, prev_delta);
     }
     m4af_write32_at(ctx, pos + 12, entry_count);
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_esds_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_esds_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
@@ -667,10 +729,10 @@ void m4af_esds_box(m4af_writer_t *ctx, int track_idx)
     m4af_write32(ctx, 0); /* version + flags */
 
     /* ES_Descriptor */
-    m4af_descriptor(ctx, 3, 32 + track->decSpecificInfoSize);
+    m4af_write_descriptor(ctx, 3, 32 + track->decSpecificInfoSize);
     m4af_write(ctx, "\0\0\0", 3);
     /* DecoderConfigDescriptor */
-    m4af_descriptor(ctx, 4, 18 + track->decSpecificInfoSize);
+    m4af_write_descriptor(ctx, 4, 18 + track->decSpecificInfoSize);
     m4af_write(ctx,
                "\x40"   /* objectTypeIndication: 0x40(Audio ISO/IEC 14496-3)*/
                "\x15"   /* streamType(6): 0x05(AudioStream)                 
@@ -682,17 +744,17 @@ void m4af_esds_box(m4af_writer_t *ctx, int track_idx)
     m4af_write32(ctx, track->maxBitrate);
     m4af_write32(ctx, track->avgBitrate);
     /* DecoderSpecificInfo */
-    m4af_descriptor(ctx, 5, track->decSpecificInfoSize);
+    m4af_write_descriptor(ctx, 5, track->decSpecificInfoSize);
     m4af_write(ctx, track->decSpecificInfo, track->decSpecificInfoSize);
     /* SLConfigDescriptor */
-    m4af_descriptor(ctx, 6, 1);
+    m4af_write_descriptor(ctx, 6, 1);
     m4af_write(ctx, "\002", 1); /* predefined */
 
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_alac_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_alac_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
@@ -703,11 +765,11 @@ void m4af_alac_box(m4af_writer_t *ctx, int track_idx)
                "\0\0\0"    /* flags       */
                , 12);
     m4af_write(ctx, track->decSpecificInfo, track->decSpecificInfoSize);
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_mp4a_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_mp4a_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
@@ -725,16 +787,16 @@ void m4af_mp4a_box(m4af_writer_t *ctx, int track_idx)
                ,24);
     if (track->codec == M4AF_FOURCC('m','p','4','a')) {
         m4af_write32(ctx, track->timescale << 16);
-        m4af_esds_box(ctx, track_idx);
+        m4af_write_esds_box(ctx, track_idx);
     } else {
-        m4af_write32(ctx, 44100);
-        m4af_alac_box(ctx, track_idx);
+        m4af_write32(ctx, 44100 << 16);
+        m4af_write_alac_box(ctx, track_idx);
     }
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_stsd_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_stsd_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0stsd", 8);
@@ -743,25 +805,25 @@ void m4af_stsd_box(m4af_writer_t *ctx, int track_idx)
                "\0\0\0"      /* flags          */
                "\0\0\0\001"  /* entry_count: 1 */
                , 8);
-    m4af_mp4a_box(ctx, track_idx);
-    m4af_update_size(ctx, pos);
+    m4af_write_mp4a_box(ctx, track_idx);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_stbl_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_stbl_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0stbl", 8);
-    m4af_stsd_box(ctx, track_idx);
-    m4af_stts_box(ctx, track_idx);
-    m4af_stsc_box(ctx, track_idx);
-    m4af_stsz_box(ctx, track_idx);
-    m4af_stco_box(ctx, track_idx);
-    m4af_update_size(ctx, pos);
+    m4af_write_stsd_box(ctx, track_idx);
+    m4af_write_stts_box(ctx, track_idx);
+    m4af_write_stsc_box(ctx, track_idx);
+    m4af_write_stsz_box(ctx, track_idx);
+    m4af_write_stco_box(ctx, track_idx);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_url_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_url_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_write(ctx,
                "\0\0\0\014"  /* size                       */
@@ -772,7 +834,7 @@ void m4af_url_box(m4af_writer_t *ctx, int track_idx)
 }
 
 static
-void m4af_dref_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_dref_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0dref", 8);
@@ -781,21 +843,21 @@ void m4af_dref_box(m4af_writer_t *ctx, int track_idx)
                "\0\0\0"      /* flags          */
                "\0\0\0\001"  /* entry_count: 1 */
                ,8);
-    m4af_url_box(ctx, track_idx);
-    m4af_update_size(ctx, pos);
+    m4af_write_url_box(ctx, track_idx);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_dinf_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_dinf_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0dinf", 8);
-    m4af_dref_box(ctx, track_idx);
-    m4af_update_size(ctx, pos);
+    m4af_write_dref_box(ctx, track_idx);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_smhd_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_smhd_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_write(ctx,
                "\0\0\0\020"  /* size          */
@@ -808,21 +870,21 @@ void m4af_smhd_box(m4af_writer_t *ctx, int track_idx)
 }
 
 static
-void m4af_minf_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_minf_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0minf", 8);
     /* TODO: add TEXT support */
     if (track->codec != M4AF_CODEC_TEXT)
-        m4af_smhd_box(ctx, track_idx);
-    m4af_dinf_box(ctx, track_idx);
-    m4af_stbl_box(ctx, track_idx);
-    m4af_update_size(ctx, pos);
+        m4af_write_smhd_box(ctx, track_idx);
+    m4af_write_dinf_box(ctx, track_idx);
+    m4af_write_stbl_box(ctx, track_idx);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_mdhd_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_mdhd_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
@@ -848,11 +910,11 @@ void m4af_mdhd_box(m4af_writer_t *ctx, int track_idx)
                "\x55\xc4"  /* language: und */
                "\0\0"      /* pre_defined   */
                , 4);
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_hdlr_box(m4af_writer_t *ctx, int track_idx, const char *type)
+void m4af_write_hdlr_box(m4af_ctx_t *ctx, uint32_t track_idx, const char *type)
 {
     int64_t pos = m4af_tell(ctx);
     static const char reserved_and_name[10] = { 0 };
@@ -869,25 +931,25 @@ void m4af_hdlr_box(m4af_writer_t *ctx, int track_idx, const char *type)
     m4af_write(ctx, !strcmp(type, "mdir") ? "appl" : "\0\0\0\0", 4);
     /* reserved[1], reserved[2], name */
     m4af_write(ctx, reserved_and_name, (pos & 1) ? 9 : 10);
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_mdia_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_mdia_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     const char *hdlr =
         (track->codec == M4AF_CODEC_TEXT) ? "text" : "soun";
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0mdia", 8);
-    m4af_mdhd_box(ctx, track_idx);
-    m4af_hdlr_box(ctx, track_idx, hdlr);
-    m4af_minf_box(ctx, track_idx);
-    m4af_update_size(ctx, pos);
+    m4af_write_mdhd_box(ctx, track_idx);
+    m4af_write_hdlr_box(ctx, track_idx, hdlr);
+    m4af_write_minf_box(ctx, track_idx);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_tkhd_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_tkhd_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
@@ -933,21 +995,21 @@ void m4af_tkhd_box(m4af_writer_t *ctx, int track_idx)
                "\0\0\0\0"   /* width            */
                "\0\0\0\0"   /* height           */
                , 60);
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_trak_box(m4af_writer_t *ctx, int track_idx)
+void m4af_write_trak_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0trak", 8);
-    m4af_tkhd_box(ctx, track_idx);
-    m4af_mdia_box(ctx, track_idx);
-    m4af_update_size(ctx, pos);
+    m4af_write_tkhd_box(ctx, track_idx);
+    m4af_write_mdia_box(ctx, track_idx);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-int64_t m4af_movie_duration(m4af_writer_t *ctx)
+int64_t m4af_movie_duration(m4af_ctx_t *ctx)
 {
     int64_t movie_duration = 0;
     unsigned i;
@@ -961,7 +1023,7 @@ int64_t m4af_movie_duration(m4af_writer_t *ctx)
 }
 
 static
-void m4af_mvhd_box(m4af_writer_t *ctx)
+void m4af_write_mvhd_box(m4af_ctx_t *ctx)
 {
     int64_t pos = m4af_tell(ctx);
     int64_t movie_duration = m4af_movie_duration(ctx);
@@ -1006,11 +1068,11 @@ void m4af_mvhd_box(m4af_writer_t *ctx)
                "\0\0\0\0"   /* pre_defined[5]   */
                , 76);
     m4af_write32(ctx, ctx->num_tracks + 1);
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_mean_box(m4af_writer_t *ctx)
+void m4af_write_mean_box(m4af_ctx_t *ctx)
 {
     m4af_write(ctx,
                "\0\0\0\034"       /* size           */
@@ -1022,7 +1084,7 @@ void m4af_mean_box(m4af_writer_t *ctx)
 }
 
 static
-void m4af_name_box(m4af_writer_t *ctx, const char *name)
+void m4af_write_name_box(m4af_ctx_t *ctx, const char *name)
 {
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx,
@@ -1032,12 +1094,12 @@ void m4af_name_box(m4af_writer_t *ctx, const char *name)
                "\0\0\0"    /* flags   */
                , 12);
     m4af_write(ctx, name, strlen(name));
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_data_box(m4af_writer_t *ctx, uint32_t type_code,
-                   const char *data, uint32_t data_size)
+void m4af_write_data_box(m4af_ctx_t *ctx, uint32_t type_code,
+                         const char *data, uint32_t data_size)
 {
     int64_t pos = m4af_tell(ctx);
     uint8_t code = type_code;
@@ -1050,38 +1112,39 @@ void m4af_data_box(m4af_writer_t *ctx, uint32_t type_code,
     m4af_write(ctx, &code, 1);
     m4af_write(ctx, "\0\0\0\0", 4);   /* locale */
     m4af_write(ctx, data, data_size);
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_write_metadata(m4af_writer_t *ctx, m4af_itmf_entry_t *entry)
+void m4af_write_metadata(m4af_ctx_t *ctx, m4af_itmf_entry_t *entry)
 {
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0", 4);
-    m4af_write32(ctx, entry->type);
-    if (entry->type != M4AF_FOURCC('-','-','-','-'))
-        m4af_data_box(ctx, entry->u.type_code, entry->data, entry->data_size);
+    m4af_write32(ctx, entry->fcc);
+    if (entry->fcc != M4AF_FOURCC('-','-','-','-'))
+        m4af_write_data_box(ctx, entry->type_code,
+                            entry->data, entry->data_size);
     else {
-        m4af_mean_box(ctx);
-        m4af_name_box(ctx, entry->u.name);
-        m4af_data_box(ctx, 1, entry->data, entry->data_size);
+        m4af_write_mean_box(ctx);
+        m4af_write_name_box(ctx, entry->name);
+        m4af_write_data_box(ctx, 1, entry->data, entry->data_size);
     }
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_ilst_box(m4af_writer_t *ctx)
+void m4af_write_ilst_box(m4af_ctx_t *ctx)
 {
     uint32_t i;
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0ilst", 8);
     for (i = 0; i < ctx->num_tags; ++i)
         m4af_write_metadata(ctx, &ctx->itmf_table[i]);
-    m4af_update_size(ctx, pos);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_meta_box(m4af_writer_t *ctx)
+void m4af_write_meta_box(m4af_ctx_t *ctx)
 {
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx,
@@ -1090,36 +1153,36 @@ void m4af_meta_box(m4af_writer_t *ctx)
                "\0"        /* version                  */
                "\0\0\0"    /* flags                    */
                , 12);
-    m4af_hdlr_box(ctx, 0, "mdir");
-    m4af_ilst_box(ctx);
-    m4af_update_size(ctx, pos);
+    m4af_write_hdlr_box(ctx, 0, "mdir");
+    m4af_write_ilst_box(ctx);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_udta_box(m4af_writer_t *ctx)
+void m4af_write_udta_box(m4af_ctx_t *ctx)
 {
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0udta", 8);
-    m4af_meta_box(ctx);
-    m4af_update_size(ctx, pos);
+    m4af_write_meta_box(ctx);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_moov_box(m4af_writer_t *ctx)
+void m4af_write_moov_box(m4af_ctx_t *ctx)
 {
     unsigned i;
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0moov", 8);
-    m4af_mvhd_box(ctx);
+    m4af_write_mvhd_box(ctx);
     for (i = 0; i < ctx->num_tracks; ++i)
-        m4af_trak_box(ctx, i);
+        m4af_write_trak_box(ctx, i);
     if (ctx->num_tags)
-        m4af_udta_box(ctx);
-    m4af_update_size(ctx, pos);
+        m4af_write_udta_box(ctx);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
-void m4af_finalize_mdat(m4af_writer_t *ctx)
+void m4af_finalize_mdat(m4af_ctx_t *ctx)
 {
     if (ctx->mdat_size + 8 > UINT32_MAX) {
         m4af_set_pos(ctx, ctx->mdat_pos - 16);
@@ -1133,7 +1196,7 @@ void m4af_finalize_mdat(m4af_writer_t *ctx)
     m4af_set_pos(ctx, ctx->mdat_pos + ctx->mdat_size);
 }
 
-int m4af_finalize(m4af_writer_t *ctx)
+int m4af_finalize(m4af_ctx_t *ctx)
 {
     unsigned i;
     m4af_track_t *track;
@@ -1153,41 +1216,6 @@ int m4af_finalize(m4af_writer_t *ctx)
     if (ctx->track[0].encoder_delay || ctx->track[0].padding)
         m4af_set_iTunSMPB(ctx);
     m4af_finalize_mdat(ctx);
-    m4af_moov_box(ctx);
-    return ctx->last_error ? -1 : 0;
-}
-
-static
-void m4af_free_itmf_table(m4af_writer_t *ctx)
-{
-    uint32_t i;
-    m4af_itmf_entry_t *entry = ctx->itmf_table;
-    for (i = 0; i < ctx->num_tags; ++i, ++entry) {
-        if (entry->type == M4AF_FOURCC('-','-','-','-'))
-            m4af_free(entry->u.name);
-        m4af_free(entry->data);
-    }
-    m4af_free(ctx->itmf_table);
-}
-
-void m4af_teardown(m4af_writer_t **ctxp)
-{
-    unsigned i;
-    m4af_writer_t *ctx = *ctxp;
-    m4af_track_t *track;
-    for (i = 0; i < ctx->num_tracks; ++i) {
-        track = ctx->track + i;
-        if (track->decSpecificInfo)
-            m4af_free(track->decSpecificInfo);
-        if (track->sample_table)
-            m4af_free(track->sample_table);
-        if (track->chunk_table)
-            m4af_free(track->chunk_table);
-        if (track->chunk_buffer)
-            m4af_free(track->chunk_buffer);
-    }
-    if (ctx->itmf_table)
-        m4af_free_itmf_table(ctx);
-    m4af_free(ctx);
-    *ctxp = 0;
+    m4af_write_moov_box(ctx);
+    return ctx->last_error;
 }

@@ -8,8 +8,10 @@
 #define M4AF_FOURCC(a,b,c,d) (((a)<<24)|((b)<<16)|((c)<<8)|(d))
 
 enum m4af_error_code {
-    M4AF_IO_ERROR = 1,
-    M4AF_NO_MEMORY,
+    M4AF_IO_ERROR      = -1,
+    M4AF_NO_MEMORY     = -2,
+    M4AF_FORMAT_ERROR  = -3,
+    M4AF_NOT_SUPPORTED = -4,
 };
 
 enum m4af_itmf_tag {
@@ -50,67 +52,70 @@ enum m4af_codec_type {
     M4AF_CODEC_TEXT = M4AF_FOURCC('t','e','x','t'),
 };
 
+typedef int (*m4af_read_callback)(void *cookie, void *buffer, uint32_t size);
 typedef int (*m4af_write_callback)(void *cookie, const void *data,
                                    uint32_t size);
 typedef int (*m4af_seek_callback)(void *cookie, int64_t off, int whence);
 typedef int64_t (*m4af_tell_callback)(void *cookie);
 
 typedef struct m4af_io_callbacks_t {
+    m4af_read_callback read;
     m4af_write_callback write;
     m4af_seek_callback seek;
     m4af_tell_callback tell;
 } m4af_io_callbacks_t;
 
-typedef struct m4af_writer_t m4af_writer_t;
+typedef struct m4af_itmf_entry_t {
+    uint32_t fcc;
+    char *name;
+    uint32_t type_code;
+    char *data;
+    uint32_t data_size;
+} m4af_itmf_entry_t;
 
-m4af_writer_t *m4af_create(uint32_t codec, uint32_t timescale,
-                           m4af_io_callbacks_t *io, void *io_cookie);
+typedef struct m4af_ctx_t m4af_ctx_t;
 
-void m4af_teardown(m4af_writer_t **ctx);
 
-int m4af_begin_write(m4af_writer_t *ctx);
+m4af_ctx_t *m4af_create(uint32_t codec, uint32_t timescale,
+                        m4af_io_callbacks_t *io, void *io_cookie);
 
-int m4af_finalize(m4af_writer_t *ctx);
+int m4af_begin_write(m4af_ctx_t *ctx);
 
-/* can be called before m4af_write_sample() */
-void m4af_set_fixed_frame_duration(m4af_writer_t *ctx, int track_idx,
-                                   uint32_t length);
+int m4af_finalize(m4af_ctx_t *ctx);
 
-/* can be called between mfa4_begin_write() and m4af_finalize() */
-int m4af_write_sample(m4af_writer_t *ctx, int track_idx, const void *data,
+void m4af_teardown(m4af_ctx_t **ctx);
+
+int m4af_write_sample(m4af_ctx_t *ctx, uint32_t track_idx, const void *data,
                       uint32_t size, uint32_t duration);
 
+int m4af_set_decoder_specific_info(m4af_ctx_t *ctx, uint32_t track_idx,
+                                   uint8_t *data, uint32_t size);
 
-/* the following can be called at anytime before m4af_finalize() */
-
-int m4af_decoder_specific_info(m4af_writer_t *ctx, int track_idx,
-                               uint8_t *data, uint32_t size);
-
-void m4af_set_priming(m4af_writer_t *ctx, int track_idx,
+void m4af_set_priming(m4af_ctx_t *ctx, uint32_t track_idx,
                       uint32_t encoder_delay, uint32_t padding);
 
-int m4af_add_itmf_long_tag(m4af_writer_t *ctx, const char *name,
+void m4af_set_fixed_frame_duration(m4af_ctx_t *ctx, uint32_t track_idx,
+                                   uint32_t length);
+
+int m4af_add_itmf_long_tag(m4af_ctx_t *ctx, const char *name,
                            const char *data);
 
-int m4af_add_itmf_short_tag(m4af_writer_t *ctx, uint32_t type,
-                            uint32_t type_code, const void *data,
-                            uint32_t data_size);
+int m4af_add_itmf_short_tag(m4af_ctx_t *ctx, uint32_t fcc, uint32_t type_code,
+                            const void *data, uint32_t data_size);
 
-int m4af_add_itmf_string_tag(m4af_writer_t *ctx, uint32_t type,
-                             const char *data);
+int m4af_add_itmf_string_tag(m4af_ctx_t *ctx, uint32_t fcc, const char *data);
 
-int m4af_add_itmf_int8_tag(m4af_writer_t *ctx, uint32_t type, int value);
+int m4af_add_itmf_int8_tag(m4af_ctx_t *ctx, uint32_t fcc, int value);
 
-int m4af_add_itmf_int16_tag(m4af_writer_t *ctx, uint32_t type, int value);
+int m4af_add_itmf_int16_tag(m4af_ctx_t *ctx, uint32_t fcc, int value);
 
-int m4af_add_itmf_int32_tag(m4af_writer_t *ctx, uint32_t type, uint32_t value);
+int m4af_add_itmf_int32_tag(m4af_ctx_t *ctx, uint32_t fcc, uint32_t value);
 
-int m4af_add_itmf_int64_tag(m4af_writer_t *ctx, uint32_t type, uint64_t value);
+int m4af_add_itmf_int64_tag(m4af_ctx_t *ctx, uint32_t fcc, uint64_t value);
 
-int m4af_add_itmf_track_tag(m4af_writer_t *ctx, int track, int total);
+int m4af_add_itmf_track_tag(m4af_ctx_t *ctx, int track, int total);
 
-int m4af_add_itmf_disk_tag(m4af_writer_t *ctx, int disk, int total);
+int m4af_add_itmf_disk_tag(m4af_ctx_t *ctx, int disk, int total);
 
-int m4af_add_itmf_genre_tag(m4af_writer_t *ctx, int genre);
-
+int m4af_add_itmf_genre_tag(m4af_ctx_t *ctx, int genre);
 #endif
