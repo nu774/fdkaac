@@ -166,6 +166,28 @@ void tag_put_number_pair(m4af_ctx_t *m4af, uint32_t fcc,
     }
 }
 
+static
+const char *aacenc_json_object_get_string(JSON_Object *obj, const char *key,
+                                          char *buf)
+{
+    JSON_Value_Type type;
+    const char *val = 0;
+
+    type = json_value_get_type(json_object_get_value(obj, key));
+    if (type == JSONString)
+        val = json_object_get_string(obj, key);
+    else if (type == JSONNumber) {
+        double num = json_object_get_number(obj, key);
+        sprintf(buf, "%.15g", num);
+        val = buf;
+    } else if (type == JSONBoolean) {
+        int n = json_object_get_boolean(obj, key);
+        sprintf(buf, "%d", n);
+        val = buf;
+    }
+    return val;
+}
+
 void aacenc_put_tags_from_json(m4af_ctx_t *m4af, const char *json_filename)
 {
     char *data = 0;
@@ -202,37 +224,29 @@ void aacenc_put_tags_from_json(m4af_ctx_t *m4af, const char *json_filename)
     nelts = json_object_get_count(root);
     for (i = 0; i < nelts; ++i) {
         char buf[256];
-        const char *key = 0;
-        const char *val = 0;
-        uint32_t fcc = 0;
-        JSON_Value_Type type;
-
-        key = json_object_get_name(root, i);
-        type = json_value_get_type(json_object_get_value(root, key));
-        if (type == JSONString)
-            val = json_object_get_string(root, key);
-        else if (type == JSONNumber) {
-            double num = json_object_get_number(root, key);
-            sprintf(buf, "%g", num);
-            val = buf;
-        } else if (type == JSONBoolean) {
-            int n = json_object_get_boolean(root, key);
-            sprintf(buf, "%d", n);
-            val = buf;
-        }
-        fcc = get_tag_fcc_from_name(key);
+        const char *key = json_object_get_name(root, i);
+        const char *val = aacenc_json_object_get_string(root, key, buf);
+        uint32_t fcc = get_tag_fcc_from_name(key);
         if (!val || !fcc)
             continue;
 
         switch (fcc) {
         case TAG_TOTAL_DISCS:
-            total_discs = strdup(val); break;
+            total_discs = realloc(total_discs, strlen(val) + 1);
+            strcpy(total_discs, val);
+            break;
         case TAG_TOTAL_TRACKS:
-            total_tracks = strdup(val); break;
+            total_tracks = realloc(total_tracks, strlen(val) + 1);
+            strcpy(total_tracks, val);
+            break;
         case M4AF_TAG_DISK:
-            disc = strdup(val); break;
+            disc = realloc(disc, strlen(val) + 1);
+            strcpy(disc, val);
+            break;
         case M4AF_TAG_TRACK:
-            track = strdup(val); break;
+            track = realloc(track, strlen(val) + 1);
+            strcpy(track, val);
+            break;
         default:
             {
                 entry.tag = fcc;
