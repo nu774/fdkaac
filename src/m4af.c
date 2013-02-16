@@ -426,52 +426,68 @@ int m4af_write_sample(m4af_ctx_t *ctx, uint32_t track_idx, const void *data,
 }
 
 static
-int m4af_add_itmf_entry(m4af_ctx_t *ctx)
+m4af_itmf_entry_t *m4af_find_itmf_slot(m4af_ctx_t *ctx, uint32_t fcc,
+                                       const char *name)
 {
-    m4af_itmf_entry_t *entry;
+    m4af_itmf_entry_t *entry = ctx->itmf_table;
+
+    if (name)
+        fcc = M4AF_FOURCC('-','-','-','-');
+
+    if (fcc != M4AF_TAG_ARTWORK)
+        for (; entry != ctx->itmf_table + ctx->num_tags; ++entry)
+            if (fcc == entry->fcc && (!name || !strcmp(name, entry->name)))
+                return entry;
+
     if (ctx->num_tags == ctx->itmf_table_capacity) {
         uint32_t new_size = ctx->itmf_table_capacity;
         new_size = new_size ? new_size * 2 : 1;
         entry = m4af_realloc(ctx->itmf_table, new_size * sizeof(*entry));
         if (entry == 0) {
             ctx->last_error = M4AF_NO_MEMORY;
-            return -1;
+            return 0;
         }
         ctx->itmf_table = entry;
         ctx->itmf_table_capacity = new_size;
     }
-    ++ctx->num_tags;
-    return 0;
+    entry = &ctx->itmf_table[ctx->num_tags++];
+    memset(entry, 0, sizeof(m4af_itmf_entry_t));
+    entry->fcc = fcc;
+    if (name) {
+        char *name_copy = m4af_realloc(0, strlen(name) + 1);
+        if (!name_copy) {
+            ctx->last_error = M4AF_NO_MEMORY;
+            --ctx->num_tags;
+            return 0;
+        }
+        strcpy(name_copy, name);
+        entry->name = name_copy;
+    }
+    return entry;
 }
 
 int m4af_add_itmf_long_tag(m4af_ctx_t *ctx, const char *name,
                            const char *data)
 {
     m4af_itmf_entry_t *entry;
+    char *data_copy = 0;
     size_t name_len = strlen(name);
     size_t data_len = strlen(data);
-    char *name_copy = m4af_realloc(0, name_len + 1);
-    char *data_copy = m4af_realloc(0, data_len);
-    if (!name_copy || !data_copy) {
+    if (!name_len || !data_len)
+        return 0;
+
+    if ((entry = m4af_find_itmf_slot(ctx, 0, name)) == 0)
+        goto FAIL;
+    entry->type_code = M4AF_UTF8;
+    if ((data_copy = m4af_realloc(entry->data, data_len)) == 0) {
         ctx->last_error = M4AF_NO_MEMORY;
         goto FAIL;
     }
-    if (m4af_add_itmf_entry(ctx) < 0)
-        goto FAIL;
-    memcpy(name_copy, name, name_len + 1);
     memcpy(data_copy, data, data_len);
-    entry = ctx->itmf_table + ctx->num_tags - 1;
-    entry->fcc = M4AF_FOURCC('-','-','-','-');
-    entry->name = name_copy;
-    entry->type_code = M4AF_UTF8;
     entry->data = data_copy;
     entry->data_size = data_len;
     return 0;
 FAIL:
-    if (name_copy)
-        m4af_free(name_copy);
-    if (data_copy)
-        m4af_free(data_copy);
     return ctx->last_error;
 }
 
@@ -480,24 +496,22 @@ int m4af_add_itmf_short_tag(m4af_ctx_t *ctx, uint32_t fcc,
                             uint32_t data_size)
 {
     m4af_itmf_entry_t *entry;
-    char *data_copy = m4af_realloc(0, data_size);
-    if (!data_copy) {
+    char *data_copy = 0;
+    
+    if (!data_size)
+        return 0;
+    if ((entry = m4af_find_itmf_slot(ctx, fcc, 0)) == 0)
+        goto FAIL;
+    entry->type_code = type_code;
+    if ((data_copy = m4af_realloc(entry->data, data_size)) == 0) {
         ctx->last_error = M4AF_NO_MEMORY;
         goto FAIL;
     }
-    if (m4af_add_itmf_entry(ctx) < 0)
-        goto FAIL;
-    entry = ctx->itmf_table + ctx->num_tags - 1;
-    entry->fcc = fcc;
-    entry->name = 0;
-    entry->type_code = type_code;
     memcpy(data_copy, data, data_size);
     entry->data = data_copy;
     entry->data_size = data_size;
     return 0;
 FAIL:
-    if (data_copy)
-        m4af_free(data_copy);
     return ctx->last_error;
 }
 
