@@ -325,7 +325,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
             }
             params->transport_format = n;
             break;
-        case 'c':
+        case 'C':
             params->adts_crc_check = 1;
             break;
         case 'P':
