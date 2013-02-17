@@ -31,6 +31,7 @@ AC_TYPE_UINT8_T
 AC_CHECK_TYPES([ptrdiff_t])
 
 AC_SYS_LARGEFILE
+AC_CHECK_TYPES([struct __timeb64],[],[],[[#include <sys/timeb.h>]])
 AC_FUNC_FSEEKO
 AC_CHECK_FUNCS([sigaction gettimeofday nl_langinfo strdup _vscprintf])
 AC_CHECK_FUNC(getopt_long)
