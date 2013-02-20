@@ -31,7 +31,7 @@ int __wgetmainargs(int *, wchar_t ***, wchar_t ***, int, _startupinfo *);
 
 int64_t aacenc_timer(void)
 {
-#if _MSC_VER || HAVE_STRUCT___TIMEB64
+#if HAVE_STRUCT___TIMEB64
     struct __timeb64 tv;
     _ftime64(&tv);
 #else
