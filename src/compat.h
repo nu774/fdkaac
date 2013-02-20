@@ -6,7 +6,10 @@
 #define COMPAT_H
 
 #ifndef HAVE_FSEEKO
-#  if _MSC_VER >= 1400
+#  if HAVE_FSEEKO64
+#    define fseeko fseeko64
+#    define ftello ftello64
+#  elif _MSC_VER >= 1400
 #    define fseeko _fseeki64
 #    define ftello _ftelli64
 #  else
