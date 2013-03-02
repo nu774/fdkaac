@@ -148,6 +148,10 @@ PROGNAME " %s\n"
 "                               transport layer\n"
 "\n"
 " -o <filename>                 Output filename\n"
+" -G, --gapless-mode <n>        Encoder delay signaling for gapless playback\n"
+"                                 0: iTunSMPB (default)\n"
+"                                 1: ISO standard (edts + sgpd)\n"
+"                                 2: Both\n"
 " --ignorelength                Ignore length of WAV header\n"
 " -S, --silent                  Don't print progress messages\n"
 "\n"
@@ -199,6 +203,7 @@ typedef struct aacenc_param_ex_t {
 
     char *input_filename;
     char *output_filename;
+    unsigned gapless_mode;
     unsigned ignore_length;
     int silent;
 
@@ -239,6 +244,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "adts-crc-check",   no_argument,       0, 'C' },
         { "header-period",    required_argument, 0, 'P' },
 
+        { "gapless-mode",     required_argument, 0, 'G' },
         { "ignorelength",     no_argument,       0, 'I' },
         { "silent",           no_argument,       0, 'S' },
 
@@ -268,7 +274,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
     params->afterburner = 1;
 
     aacenc_getmainargs(&argc, &argv);
-    while ((ch = getopt_long(argc, argv, "hp:b:m:w:a:Ls:f:CP:Io:SR",
+    while ((ch = getopt_long(argc, argv, "hp:b:m:w:a:Ls:f:CP:G:Io:SR",
                              long_options, 0)) != EOF) {
         switch (ch) {
         case 'h':
@@ -337,6 +343,13 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
             break;
         case 'o':
             params->output_filename = optarg;
+            break;
+        case 'G':
+            if (sscanf(optarg, "%u", &n) != 1 || n > 2) {
+                fprintf(stderr, "invalid arg for gapless-mode\n");
+                return -1;
+            }
+            params->gapless_mode = n;
             break;
         case 'I':
             params->ignore_length = 1;
@@ -718,6 +731,7 @@ int main(int argc, char **argv)
                                        aacinfo.confSize);
         m4af_set_fixed_frame_duration(m4af, 0,
                                       framelen >> downsampled_timescale);
+        m4af_set_priming_mode(m4af, params.gapless_mode + 1);
         m4af_begin_write(m4af);
     }
     frame_count = encode(wavf, encoder, aacinfo.frameLength, ofp, m4af,

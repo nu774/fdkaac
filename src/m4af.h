@@ -52,6 +52,12 @@ enum m4af_codec_type {
     M4AF_CODEC_TEXT = M4AF_FOURCC('t','e','x','t'),
 };
 
+enum m4af_priming_mode {
+    M4AF_PRIMING_MODE_ITUNSMPB = 1,
+    M4AF_PRIMING_MODE_EDTS = 2,
+    M4AF_PRIMING_MODE_BOTH = 3
+};
+
 typedef int (*m4af_read_callback)(void *cookie, void *buffer, uint32_t size);
 typedef int (*m4af_write_callback)(void *cookie, const void *data,
                                    uint32_t size);
@@ -93,6 +99,8 @@ int m4af_set_decoder_specific_info(m4af_ctx_t *ctx, uint32_t track_idx,
 
 void m4af_set_priming(m4af_ctx_t *ctx, uint32_t track_idx,
                       uint32_t encoder_delay, uint32_t padding);
+
+void m4af_set_priming_mode(m4af_ctx_t *ctx, int mode);
 
 void m4af_set_fixed_frame_duration(m4af_ctx_t *ctx, uint32_t track_idx,
                                    uint32_t length);

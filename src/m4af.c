@@ -79,6 +79,7 @@ struct m4af_ctx_t {
     int64_t modification_time;
     int64_t mdat_pos;
     int64_t mdat_size;
+    int priming_mode;
     int last_error;
 
     m4af_itmf_entry_t *itmf_table;
@@ -146,6 +147,13 @@ int m4af_write(m4af_ctx_t *ctx, const void *data, uint32_t size)
     if ((rc = ctx->io.write(ctx->io_cookie, data, size)) < 0)
         ctx->last_error = M4AF_IO_ERROR;
     return rc;
+}
+
+static
+int m4af_write16(m4af_ctx_t *ctx, uint32_t data)
+{
+    data = m4af_htob16(data);
+    return m4af_write(ctx, &data, 2);
 }
 
 static
@@ -275,6 +283,11 @@ void m4af_set_priming(m4af_ctx_t *ctx, uint32_t track_idx,
     m4af_track_t *track = &ctx->track[track_idx];
     track->encoder_delay = encoder_delay;
     track->padding = padding;
+}
+
+void m4af_set_priming_mode(m4af_ctx_t *ctx, int mode)
+{
+    ctx->priming_mode = mode;
 }
 
 static
@@ -824,11 +837,49 @@ void m4af_write_stsd_box(m4af_ctx_t *ctx, uint32_t track_idx)
 }
 
 static
+void m4af_write_sbgp_box(m4af_ctx_t *ctx, uint32_t track_idx)
+{
+    m4af_track_t *track = &ctx->track[track_idx];
+    m4af_write(ctx,
+               "\0\0\0\034"  /* size: 28                */
+               "sbgp"        /* type                    */
+               "\0"          /* version                 */
+               "\0\0\0"      /* flags                   */
+               "roll"        /* grouping_type           */
+               "\0\0\0\001"  /* entry_count: 1          */
+               , 20);
+    m4af_write32(ctx, track->num_samples);
+    m4af_write32(ctx, 1);    /* group_description_index */
+}
+
+static
+void m4af_write_sgpd_box(m4af_ctx_t *ctx, uint32_t track_idx)
+{
+    m4af_track_t *track = &ctx->track[track_idx];
+    m4af_write(ctx,
+               "\0\0\0\032"  /* size               */
+               "sgpd"        /* type               */
+               "\001"        /* version            */
+               "\0\0\0"      /* flags              */
+               "roll"        /* grouping_type      */
+               "\0\0\0\002"  /* default_length: 2  */
+               "\0\0\0\001"  /* entry_count: 1     */
+               "\377\377"    /* payload_data: -1   */
+               , 26);
+}
+
+static
 void m4af_write_stbl_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
+    m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0stbl", 8);
     m4af_write_stsd_box(ctx, track_idx);
+    if ((ctx->priming_mode & M4AF_PRIMING_MODE_EDTS) &&
+        (track->encoder_delay || track->padding)) {
+        m4af_write_sbgp_box(ctx, track_idx);
+        m4af_write_sgpd_box(ctx, track_idx);
+    }
     m4af_write_stts_box(ctx, track_idx);
     m4af_write_stsc_box(ctx, track_idx);
     m4af_write_stsz_box(ctx, track_idx);
@@ -963,6 +1014,42 @@ void m4af_write_mdia_box(m4af_ctx_t *ctx, uint32_t track_idx)
 }
 
 static
+void m4af_write_elst_box(m4af_ctx_t *ctx, uint32_t track_idx)
+{
+    m4af_track_t *track = &ctx->track[track_idx];
+    uint8_t version;
+    int64_t duration = track->duration - track->encoder_delay - track->padding;
+    int64_t pos = m4af_tell(ctx);
+    duration = (double)duration / track->timescale * ctx->timescale + .5;
+    version  = (duration > UINT32_MAX);
+
+    m4af_write(ctx, "\0\0\0\0elst", 8);
+    m4af_write(ctx, &version, 1);
+    m4af_write(ctx, "\0\0\0", 3);  /* flags          */
+    m4af_write32(ctx, 1);          /* entry_count: 1 */
+    if (version) {
+        m4af_write64(ctx, duration);
+        m4af_write64(ctx, track->encoder_delay);
+    } else {
+        m4af_write32(ctx, duration);
+        m4af_write32(ctx, track->encoder_delay);
+    }
+    m4af_write16(ctx, 1);    /* media_rate_integer  */
+    m4af_write16(ctx, 0);    /* media_rate_fraction */
+    m4af_update_box_size(ctx, pos);
+}
+
+static
+void m4af_write_edts_box(m4af_ctx_t *ctx, uint32_t track_idx)
+{
+    m4af_track_t *track = &ctx->track[track_idx];
+    int64_t pos = m4af_tell(ctx);
+    m4af_write(ctx, "\0\0\0\0edts", 8);
+    m4af_write_elst_box(ctx, track_idx);
+    m4af_update_box_size(ctx, pos);
+}
+
+static
 void m4af_write_tkhd_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
@@ -1015,9 +1102,13 @@ void m4af_write_tkhd_box(m4af_ctx_t *ctx, uint32_t track_idx)
 static
 void m4af_write_trak_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
+    m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0trak", 8);
     m4af_write_tkhd_box(ctx, track_idx);
+    if ((ctx->priming_mode & M4AF_PRIMING_MODE_EDTS) &&
+        (track->encoder_delay || track->padding))
+        m4af_write_edts_box(ctx, track_idx);
     m4af_write_mdia_box(ctx, track_idx);
     m4af_update_box_size(ctx, pos);
 }
@@ -1227,7 +1318,9 @@ int m4af_finalize(m4af_ctx_t *ctx)
         }
         m4af_flush_chunk(ctx, i);
     }
-    if (ctx->track[0].encoder_delay || ctx->track[0].padding)
+    track = ctx->track;
+    if ((ctx->priming_mode & M4AF_PRIMING_MODE_ITUNSMPB) &&
+        (track->encoder_delay || track->padding))
         m4af_set_iTunSMPB(ctx);
     m4af_finalize_mdat(ctx);
     m4af_write_moov_box(ctx);
