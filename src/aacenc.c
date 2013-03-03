@@ -97,7 +97,7 @@ int aacenc_init(HANDLE_AACENCODER *encoder, const aacenc_param_t *params,
     }
     if (aacEncoder_SetParam(*encoder, AACENC_SIGNALING_MODE,
                             params->sbr_signaling) != AACENC_OK) {
-        fprintf(stderr, "ERROR: unsupported transport format\n");
+        fprintf(stderr, "ERROR: failed to set SBR signaling mode\n");
         goto FAIL;
     }
     if (params->adts_crc_check)
