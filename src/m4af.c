@@ -23,6 +23,7 @@
 
 #define m4af_realloc(memory,size) realloc(memory, size)
 #define m4af_free(memory) free(memory)
+#define m4af_max(a,b) ((a)<(b)?(b):(a))
 
 #define M4AF_ATOM_WILD  0xffffffff
 
@@ -596,12 +597,13 @@ int m4af_set_iTunSMPB(m4af_ctx_t *ctx)
 }
 
 static
-void m4af_update_box_size(m4af_ctx_t *ctx, int64_t pos)
+uint32_t m4af_update_box_size(m4af_ctx_t *ctx, int64_t pos)
 {
     int64_t current_pos = m4af_tell(ctx);
     m4af_set_pos(ctx, pos);
     m4af_write32(ctx, current_pos - pos);
     m4af_set_pos(ctx, current_pos);
+    return current_pos - pos;
 }
 
 static
@@ -1273,7 +1275,7 @@ void m4af_write_udta_box(m4af_ctx_t *ctx)
 }
 
 static
-void m4af_write_moov_box(m4af_ctx_t *ctx)
+uint32_t m4af_write_moov_box(m4af_ctx_t *ctx)
 {
     unsigned i;
     int64_t pos = m4af_tell(ctx);
@@ -1283,7 +1285,7 @@ void m4af_write_moov_box(m4af_ctx_t *ctx)
         m4af_write_trak_box(ctx, i);
     if (ctx->num_tags)
         m4af_write_udta_box(ctx);
-    m4af_update_box_size(ctx, pos);
+    return m4af_update_box_size(ctx, pos);
 }
 
 static
@@ -1301,10 +1303,35 @@ void m4af_finalize_mdat(m4af_ctx_t *ctx)
     m4af_set_pos(ctx, ctx->mdat_pos + ctx->mdat_size);
 }
 
-int m4af_finalize(m4af_ctx_t *ctx)
+static
+void m4af_shift_mdat_pos(m4af_ctx_t *ctx, uint32_t offset)
+{
+    unsigned i, j;
+    int64_t begin, end;
+    char buf[8192];
+
+    end = ctx->mdat_pos + ctx->mdat_size;
+    for (; (begin = m4af_max(ctx->mdat_pos, end - 8192)) < end; end = begin) {
+        m4af_set_pos(ctx, begin);
+        ctx->io.read(ctx->io_cookie, buf, end - begin);
+        m4af_set_pos(ctx, begin + offset);
+        m4af_write(ctx, buf, end - begin);
+    }
+    for (i = 0; i < ctx->num_tracks; ++i)
+        for (j = 0; j < ctx->track[i].num_chunks; ++j)
+            ctx->track[i].chunk_table[j].offset += offset;
+    ctx->mdat_pos += offset;
+    m4af_set_pos(ctx, ctx->mdat_pos - 16);
+    m4af_write_free_box(ctx, 0);
+    m4af_write(ctx, "\0\0\0\0mdat", 8);
+    m4af_finalize_mdat(ctx);
+}
+
+int m4af_finalize(m4af_ctx_t *ctx, int optimize)
 {
     unsigned i;
     m4af_track_t *track;
+    uint32_t moov_size;
 
     for (i = 0; i < ctx->num_tracks; ++i) {
         track = ctx->track + i;
@@ -1323,6 +1350,14 @@ int m4af_finalize(m4af_ctx_t *ctx)
         (track->encoder_delay || track->padding))
         m4af_set_iTunSMPB(ctx);
     m4af_finalize_mdat(ctx);
-    m4af_write_moov_box(ctx);
+    moov_size = m4af_write_moov_box(ctx);
+    if (optimize) {
+        int64_t pos;
+        m4af_shift_mdat_pos(ctx, moov_size + 1024);
+        m4af_set_pos(ctx, 32);
+        m4af_write_moov_box(ctx);
+        pos = m4af_tell(ctx);
+        m4af_write_free_box(ctx, ctx->mdat_pos - pos - 24);
+    }
     return ctx->last_error;
 }

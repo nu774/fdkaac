@@ -154,6 +154,7 @@ PROGNAME " %s\n"
 "                                 2: Both\n"
 " --ignorelength                Ignore length of WAV header\n"
 " -S, --silent                  Don't print progress messages\n"
+" --moov-before-mdat            Place moov box before mdat box on m4a output\n"
 "\n"
 "Options for raw (headerless) input:\n"
 " -R, --raw                     Treat input as raw (by default WAV is\n"
@@ -206,6 +207,7 @@ typedef struct aacenc_param_ex_t {
     unsigned gapless_mode;
     unsigned ignore_length;
     int silent;
+    int moov_before_mdat;
 
     int is_raw;
     unsigned raw_channels;
@@ -223,6 +225,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
     int ch;
     unsigned n;
 
+#define OPT_MOOV_BEFORE_MDAT     M4AF_FOURCC('m','o','o','v')
 #define OPT_RAW_CHANNELS         M4AF_FOURCC('r','c','h','n')
 #define OPT_RAW_RATE             M4AF_FOURCC('r','r','a','t')
 #define OPT_RAW_FORMAT           M4AF_FOURCC('r','f','m','t')
@@ -247,6 +250,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "gapless-mode",     required_argument, 0, 'G' },
         { "ignorelength",     no_argument,       0, 'I' },
         { "silent",           no_argument,       0, 'S' },
+        { "moov-before-mdat", no_argument,       0, OPT_MOOV_BEFORE_MDAT   },
 
         { "raw",              no_argument,       0, 'R' },
         { "raw-channels",     required_argument, 0, OPT_RAW_CHANNELS       },
@@ -356,6 +360,9 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
             break;
         case 'S':
             params->silent = 1;
+            break;
+        case OPT_MOOV_BEFORE_MDAT:
+            params->moov_before_mdat = 1;
             break;
         case 'R':
             params->is_raw = 1;
@@ -580,7 +587,7 @@ int finalize_m4a(m4af_ctx_t *m4af, const aacenc_param_ex_t *params,
 
     put_tool_tag(m4af, params, encoder);
 
-    if (m4af_finalize(m4af) < 0) {
+    if (m4af_finalize(m4af, params->moov_before_mdat) < 0) {
         fprintf(stderr, "ERROR: failed to finalize m4a\n");
         return -1;
     }
@@ -647,7 +654,7 @@ int main(int argc, char **argv)
 {
     wav_io_context_t wav_io = { read_callback, seek_callback, tell_callback };
     m4af_io_callbacks_t
-        m4af_io = { 0, write_callback, seek_callback, tell_callback };
+        m4af_io = { read_callback, write_callback, seek_callback, tell_callback };
     aacenc_param_ex_t params = { 0 };
 
     int result = 2;
@@ -711,7 +718,7 @@ int main(int argc, char **argv)
         params.output_filename = output_filename;
     }
 
-    if ((ofp = aacenc_fopen(params.output_filename, "wb")) == 0) {
+    if ((ofp = aacenc_fopen(params.output_filename, "wb+")) == 0) {
         aacenc_fprintf(stderr, "ERROR: %s: %s\n", params.output_filename,
                        strerror(errno));
         goto END;

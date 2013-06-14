@@ -87,7 +87,7 @@ m4af_ctx_t *m4af_create(uint32_t codec, uint32_t timescale,
 
 int m4af_begin_write(m4af_ctx_t *ctx);
 
-int m4af_finalize(m4af_ctx_t *ctx);
+int m4af_finalize(m4af_ctx_t *ctx, int optimize);
 
 void m4af_teardown(m4af_ctx_t **ctx);
 
