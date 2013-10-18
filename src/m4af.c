@@ -771,7 +771,11 @@ void m4af_write_esds_box(m4af_ctx_t *ctx, uint32_t track_idx)
                , 2);
     m4af_write24(ctx, track->bufferSizeDB);
     m4af_write32(ctx, track->maxBitrate);
+#if 0
     m4af_write32(ctx, track->avgBitrate);
+#else
+    m4af_write32(ctx, 0);
+#endif
     /* DecoderSpecificInfo */
     m4af_write_descriptor(ctx, 5, track->decSpecificInfoSize);
     m4af_write(ctx, track->decSpecificInfo, track->decSpecificInfoSize);
