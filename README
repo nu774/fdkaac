@@ -32,6 +32,19 @@ look like the following:
 
 MSVC solution for Visual Studio 2010 is under MSVC directory.
 
+Available input format
+----------------------
+WAV (or RF64), upto 32bit int / 64bit float format is supported.
+However, since FDK AAC encoder is implemented based on fixed point integer,
+encoder itself treats 16bit input only.
+Therefore, when feeding non-integer input, be careful so that input doesn't
+exceed 0dBFS to avoid hard clips.
+You might also want to apply dither/noise shape beforehand when your input
+has higher resolution.
+
+Note that fdkaac doesn't automatically resample for you
+when input samplerate is not supported by AAC spec.
+
 Tagging Options
 ---------------
 Generic tagging options like --tag, --tag-from-file, --long-tag allows you
