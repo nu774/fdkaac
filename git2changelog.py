@@ -15,15 +15,19 @@ GITLOG_CMD = ['git','log','--date=short','--format={0}'.format(GITLOG_FMT)]
 Commit = namedtuple('Commit', 'commit author date subject ref')
 
 def parse_gitlog(stream):
-    re_decode_tag = re.compile(r'(?<=\()([^,)]+)')
+    re_decode_ref = re.compile(r'(?<=\()([^,)]+)')
+    re_strip_tag = re.compile(r'^tag: ')
     commit = dict()
     for line in stream:
         fields = line.decode('utf-8').rstrip('\r\n').split(' ', 1)
         if len(fields) == 2:
             key, value = fields
             if key == 'ref':
-                m = re_decode_tag.search(value)
-                value = ' [{0}]'.format(m.group()) if m else ''
+                m = re_decode_ref.search(value)
+                if m:
+                    value = ' [{0}]'.format(re_strip_tag.sub('', m.group()))
+                else:
+                    value = ''
             commit[key] = value
         elif commit:
             yield Commit(**commit) 

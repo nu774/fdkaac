@@ -1,6 +1,18 @@
+2013-10-19  nu774 <honeycomb77@gmail.com>
+
+  * update ChangeLog and git2changelog.py [HEAD]
+
+2013-10-18  nu774 <honeycomb77@gmail.com>
+
+  * bump version [v0.3.1]
+
+  * update README
+
+  * set avgBitrate field to zero for 14496-1 compliance
+
 2013-09-07  nu774 <honeycomb77@gmail.com>
 
-  * updated ChangeLog with new git2changelog.py [HEAD]
+  * updated ChangeLog with new git2changelog.py
 
 2013-06-14  nu774 <honeycomb77@gmail.com>
 
