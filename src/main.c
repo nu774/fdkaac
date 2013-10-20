@@ -203,7 +203,9 @@ typedef struct aacenc_param_ex_t {
     AACENC_PARAMS
 
     char *input_filename;
+    FILE *input_fp;
     char *output_filename;
+    FILE *output_fp;
     unsigned gapless_mode;
     unsigned ignore_length;
     int silent;
@@ -487,7 +489,7 @@ int write_sample(FILE *ofp, m4af_ctx_t *m4af,
 }
 
 static
-int encode(wav_reader_t *wavf, HANDLE_AACENCODER encoder,
+int encode(pcm_reader_t *reader, HANDLE_AACENCODER encoder,
            uint32_t frame_length, FILE *ofp, m4af_ctx_t *m4af,
            int show_progress)
 {
@@ -502,29 +504,29 @@ int encode(wav_reader_t *wavf, HANDLE_AACENCODER encoder,
     int rc = -1;
     int frames_written = 0;
     aacenc_progress_t progress = { 0 };
-    const pcm_sample_description_t *format = wav_get_format(wavf);
+    const pcm_sample_description_t *fmt = pcm_get_format(reader);
 
-    ibuf = malloc(frame_length * format->bytes_per_frame);
-    aacenc_progress_init(&progress, wav_get_length(wavf), format->sample_rate);
+    ibuf = malloc(frame_length * fmt->bytes_per_frame);
+    aacenc_progress_init(&progress, pcm_get_length(reader), fmt->sample_rate);
     do {
         if (g_interrupted)
             nread = 0;
         else if (nread) {
-            if ((nread = wav_read_frames(wavf, ibuf, frame_length)) < 0) {
+            if ((nread = pcm_read_frames(reader, ibuf, frame_length)) < 0) {
                 fprintf(stderr, "ERROR: read failed\n");
                 goto END;
             } else if (nread > 0) {
-                if (pcm_convert_to_native_sint16(format, ibuf, nread,
+                if (pcm_convert_to_native_sint16(fmt, ibuf, nread,
                                                  &pcmbuf, &pcmsize) < 0) {
                     fprintf(stderr, "ERROR: unsupported sample format\n");
                     goto END;
                 }
             }
             if (show_progress)
-                aacenc_progress_update(&progress, wav_get_position(wavf),
-                                       format->sample_rate * 2);
+                aacenc_progress_update(&progress, pcm_get_position(reader),
+                                       fmt->sample_rate * 2);
         }
-        if ((consumed = aac_encode_frame(encoder, format, pcmbuf, nread,
+        if ((consumed = aac_encode_frame(encoder, fmt, pcmbuf, nread,
                                          &obuf, &olen, &osize)) < 0)
             goto END;
         if (olen > 0) {
@@ -535,7 +537,7 @@ int encode(wav_reader_t *wavf, HANDLE_AACENCODER encoder,
     } while (nread > 0 || olen > 0);
 
     if (show_progress)
-        aacenc_progress_finish(&progress, wav_get_position(wavf));
+        aacenc_progress_finish(&progress, pcm_get_position(reader));
     rc = frames_written;
 END:
     if (ibuf) free(ibuf);
@@ -650,25 +652,67 @@ int parse_raw_spec(const char *spec, pcm_sample_description_t *desc)
     return 0;
 }
 
+static
+pcm_reader_t *open_input(aacenc_param_ex_t *params)
+{
+    wav_io_context_t wav_io = {
+        read_callback, seek_callback, tell_callback
+    };
+    pcm_reader_t *reader = 0;
+    struct stat stb = { 0 };
+
+    if ((params->input_fp = aacenc_fopen(params->input_filename, "rb")) == 0) {
+        aacenc_fprintf(stderr, "ERROR: %s: %s\n", params->input_filename,
+                       strerror(errno));
+        goto END;
+    }
+    if (fstat(fileno(params->input_fp), &stb) == 0
+            && (stb.st_mode & S_IFMT) != S_IFREG) {
+        wav_io.seek = 0;
+        wav_io.tell = 0;
+    }
+    if (params->is_raw) {
+        int bytes_per_channel;
+        pcm_sample_description_t desc = { 0 };
+        if (parse_raw_spec(params->raw_format, &desc) < 0) {
+            fprintf(stderr, "ERROR: invalid raw-format spec\n");
+            goto END;
+        }
+        desc.sample_rate = params->raw_rate;
+        desc.channels_per_frame = params->raw_channels;
+        bytes_per_channel = (desc.bits_per_channel + 7) / 8;
+        desc.bytes_per_frame = params->raw_channels * bytes_per_channel;
+        if ((reader = raw_open(&wav_io, params->input_fp, &desc)) == 0) {
+            fprintf(stderr, "ERROR: failed to open raw input\n");
+            goto END;
+        }
+    } else {
+        if ((reader = wav_open(&wav_io, params->input_fp,
+                               params->ignore_length)) == 0) {
+            fprintf(stderr, "ERROR: broken / unsupported input file\n");
+            goto END;
+        }
+    }
+END:
+    return reader;
+}
+
 int main(int argc, char **argv)
 {
-    wav_io_context_t wav_io = { read_callback, seek_callback, tell_callback };
-    m4af_io_callbacks_t
-        m4af_io = { read_callback, write_callback, seek_callback, tell_callback };
+    static m4af_io_callbacks_t m4af_io = {
+        read_callback, write_callback, seek_callback, tell_callback
+    };
     aacenc_param_ex_t params = { 0 };
 
     int result = 2;
-    FILE *ifp = 0;
-    FILE *ofp = 0;
     char *output_filename = 0;
-    wav_reader_t *wavf = 0;
+    pcm_reader_t *reader = 0;
     HANDLE_AACENCODER encoder = 0;
     AACENC_InfoStruct aacinfo = { 0 };
     m4af_ctx_t *m4af = 0;
     const pcm_sample_description_t *sample_format;
     int downsampled_timescale = 0;
     int frame_count = 0;
-    struct stat stb = { 0 };
 
     setlocale(LC_CTYPE, "");
     setbuf(stderr, 0);
@@ -676,37 +720,10 @@ int main(int argc, char **argv)
     if (parse_options(argc, argv, &params) < 0)
         return 1;
 
-    if ((ifp = aacenc_fopen(params.input_filename, "rb")) == 0) {
-        aacenc_fprintf(stderr, "ERROR: %s: %s\n", params.input_filename,
-                       strerror(errno));
+    if ((reader = open_input(&params)) == 0)
         goto END;
-    }
-    if (fstat(fileno(ifp), &stb) == 0 && (stb.st_mode & S_IFMT) != S_IFREG) {
-        wav_io.seek = 0;
-        wav_io.tell = 0;
-    }
-    if (!params.is_raw) {
-        if ((wavf = wav_open(&wav_io, ifp, params.ignore_length)) == 0) {
-            fprintf(stderr, "ERROR: broken / unsupported input file\n");
-            goto END;
-        }
-    } else {
-        int bytes_per_channel;
-        pcm_sample_description_t desc = { 0 };
-        if (parse_raw_spec(params.raw_format, &desc) < 0) {
-            fprintf(stderr, "ERROR: invalid raw-format spec\n");
-            goto END;
-        }
-        desc.sample_rate = params.raw_rate;
-        desc.channels_per_frame = params.raw_channels;
-        bytes_per_channel = (desc.bits_per_channel + 7) / 8;
-        desc.bytes_per_frame = params.raw_channels * bytes_per_channel;
-        if ((wavf = raw_open(&wav_io, ifp, &desc)) == 0) {
-            fprintf(stderr, "ERROR: failed to open raw input\n");
-            goto END;
-        }
-    }
-    sample_format = wav_get_format(wavf);
+
+    sample_format = pcm_get_format(reader);
 
     if (aacenc_init(&encoder, (aacenc_param_t*)&params, sample_format,
                     &aacinfo) < 0)
@@ -718,7 +735,7 @@ int main(int argc, char **argv)
         params.output_filename = output_filename;
     }
 
-    if ((ofp = aacenc_fopen(params.output_filename, "wb+")) == 0) {
+    if ((params.output_fp = aacenc_fopen(params.output_filename, "wb+")) == 0) {
         aacenc_fprintf(stderr, "ERROR: %s: %s\n", params.output_filename,
                        strerror(errno));
         goto END;
@@ -732,7 +749,8 @@ int main(int argc, char **argv)
         if (sbr_mode && !sig_mode)
             downsampled_timescale = 1;
         scale = sample_format->sample_rate >> downsampled_timescale;
-        if ((m4af = m4af_create(M4AF_CODEC_MP4A, scale, &m4af_io, ofp)) < 0)
+        if ((m4af = m4af_create(M4AF_CODEC_MP4A, scale, &m4af_io,
+                                params.output_fp)) < 0)
             goto END;
         m4af_set_decoder_specific_info(m4af, 0, aacinfo.confBuf,
                                        aacinfo.confSize);
@@ -742,13 +760,13 @@ int main(int argc, char **argv)
         m4af_set_priming_mode(m4af, params.gapless_mode + 1);
         m4af_begin_write(m4af);
     }
-    frame_count = encode(wavf, encoder, aacinfo.frameLength, ofp, m4af,
-                         !params.silent);
+    frame_count = encode(reader, encoder, aacinfo.frameLength,
+                         params.output_fp, m4af, !params.silent);
     if (frame_count < 0)
         goto END;
     if (m4af) {
         uint32_t delay = aacinfo.encoderDelay;
-        int64_t frames_read = wav_get_position(wavf);
+        int64_t frames_read = pcm_get_position(reader);
         uint32_t padding = frame_count * aacinfo.frameLength
                             - frames_read - aacinfo.encoderDelay;
         m4af_set_priming(m4af, 0, delay >> downsampled_timescale,
@@ -758,10 +776,10 @@ int main(int argc, char **argv)
     }
     result = 0;
 END:
-    if (wavf) wav_teardown(&wavf);
-    if (ifp) fclose(ifp);
+    if (reader) pcm_teardown(&reader);
+    if (params.input_fp) fclose(params.input_fp);
     if (m4af) m4af_teardown(&m4af);
-    if (ofp) fclose(ofp);
+    if (params.output_fp) fclose(params.output_fp);
     if (encoder) aacEncClose(&encoder);
     if (output_filename) free(output_filename);
     if (params.tags.tag_table) free(params.tags.tag_table);

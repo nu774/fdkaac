@@ -35,6 +35,7 @@
     } while (0)
 
 struct wav_reader_t {
+    pcm_reader_vtbl_t *vtbl;
     pcm_sample_description_t sample_format;
     int64_t length;
     int64_t position;
@@ -52,22 +53,22 @@ static const uint8_t WAV_GUID_FLOAT[] = {
     3, 0, 0, 0, 0, 0, 0x10, 0, 0x80, 0, 0, 0xaa, 0, 0x38, 0x9b, 0x71
 };
 
-const pcm_sample_description_t *wav_get_format(wav_reader_t *reader)
+static const pcm_sample_description_t *wav_get_format(pcm_reader_t *reader)
 {
-    return &reader->sample_format;
+    return &((wav_reader_t *)reader)->sample_format;
 }
 
-int64_t wav_get_length(wav_reader_t *reader)
+static int64_t wav_get_length(pcm_reader_t *reader)
 {
-    return reader->length;
+    return ((wav_reader_t *)reader)->length;
 }
 
-int64_t wav_get_position(wav_reader_t *reader)
+static int64_t wav_get_position(pcm_reader_t *reader)
 {
-    return reader->position;
+    return ((wav_reader_t *)reader)->position;
 }
 
-void wav_teardown(wav_reader_t **reader)
+static void wav_teardown(pcm_reader_t **reader)
 {
     free(*reader);
     *reader = 0;
@@ -213,10 +214,12 @@ uint32_t riff_next_chunk(wav_reader_t *reader, uint32_t *chunk_size)
     return 0;
 }
 
-int wav_read_frames(wav_reader_t *reader, void *buffer, unsigned nframes)
+static
+int wav_read_frames(pcm_reader_t *preader, void *buffer, unsigned nframes)
 {
     int rc;
     unsigned nbytes;
+    wav_reader_t *reader = (wav_reader_t *)preader;
 
     if (!reader->ignore_length && nframes > reader->length - reader->position)
         nframes = reader->length - reader->position;
@@ -345,7 +348,15 @@ FAIL:
     return -1;
 }
 
-wav_reader_t *wav_open(wav_io_context_t *io_ctx, void *io_cookie,
+static pcm_reader_vtbl_t wav_vtable = {
+    wav_get_format,
+    wav_get_length,
+    wav_get_position,
+    wav_read_frames,
+    wav_teardown
+};
+
+pcm_reader_t *wav_open(wav_io_context_t *io_ctx, void *io_cookie,
                        int ignore_length)
 {
     wav_reader_t *reader = 0;
@@ -375,10 +386,11 @@ wav_reader_t *wav_open(wav_io_context_t *io_ctx, void *io_cookie,
             reader->io.seek(reader->io_cookie, reader->data_offset, SEEK_SET);
         }
     }
-    return reader;
+    reader->vtbl = &wav_vtable;
+    return (pcm_reader_t *)reader;
 }
 
-wav_reader_t *raw_open(wav_io_context_t *io_ctx, void *io_cookie,
+pcm_reader_t *raw_open(wav_io_context_t *io_ctx, void *io_cookie,
                        const pcm_sample_description_t *desc)
 {
     wav_reader_t *reader = 0;
@@ -397,7 +409,8 @@ wav_reader_t *raw_open(wav_io_context_t *io_ctx, void *io_cookie,
         }
     } else
         reader->length = INT64_MAX;
-    return reader;
+    reader->vtbl = &wav_vtable;
+    return (pcm_reader_t *)reader;
 }
 
 

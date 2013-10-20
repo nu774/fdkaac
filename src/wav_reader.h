@@ -6,6 +6,7 @@
 #define WAV_READER_H
 
 #include "lpcm.h"
+#include "pcm_reader.h"
 
 enum wav_error_code {
     WAV_IO_ERROR = 1,
@@ -26,14 +27,9 @@ typedef struct wav_io_context_t {
 
 typedef struct wav_reader_t wav_reader_t;
 
-wav_reader_t *wav_open(wav_io_context_t *io_ctx, void *io_cookie,
+pcm_reader_t *wav_open(wav_io_context_t *io_ctx, void *io_cookie,
                        int ignore_length);
-wav_reader_t *raw_open(wav_io_context_t *io_ctx, void *io_cookie,
+pcm_reader_t *raw_open(wav_io_context_t *io_ctx, void *io_cookie,
                        const pcm_sample_description_t *desc);
-const pcm_sample_description_t *wav_get_format(wav_reader_t *reader);
-int wav_read_frames(wav_reader_t *reader, void *buffer, unsigned nframes);
-int64_t wav_get_length(wav_reader_t *reader);
-int64_t wav_get_position(wav_reader_t *reader);
-void wav_teardown(wav_reader_t **reader);
 
 #endif
