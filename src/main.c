@@ -738,6 +738,7 @@ int main(int argc, char **argv)
                                        aacinfo.confSize);
         m4af_set_fixed_frame_duration(m4af, 0,
                                       framelen >> downsampled_timescale);
+        m4af_set_vbr_mode(m4af, 0, params.bitrate_mode);
         m4af_set_priming_mode(m4af, params.gapless_mode + 1);
         m4af_begin_write(m4af);
     }

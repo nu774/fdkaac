@@ -53,6 +53,7 @@ typedef struct m4af_track_t {
     uint32_t bufferSizeDB;
     uint32_t maxBitrate;
     uint32_t avgBitrate;
+    int is_vbr;
 
     m4af_sample_entry_t *sample_table;
     uint32_t num_samples;
@@ -276,6 +277,12 @@ int m4af_set_decoder_specific_info(m4af_ctx_t *ctx, uint32_t track_idx,
     track->decSpecificInfoSize = size;
 DONE:
     return ctx->last_error;
+}
+
+void m4af_set_vbr_mode(m4af_ctx_t *ctx, uint32_t track_idx, int is_vbr)
+{
+    m4af_track_t *track = &ctx->track[track_idx];
+    track->is_vbr = is_vbr;
 }
 
 void m4af_set_priming(m4af_ctx_t *ctx, uint32_t track_idx,
@@ -771,11 +778,7 @@ void m4af_write_esds_box(m4af_ctx_t *ctx, uint32_t track_idx)
                , 2);
     m4af_write24(ctx, track->bufferSizeDB);
     m4af_write32(ctx, track->maxBitrate);
-#if 0
-    m4af_write32(ctx, track->avgBitrate);
-#else
-    m4af_write32(ctx, 0);
-#endif
+    m4af_write32(ctx, track->is_vbr ? 0: track->avgBitrate);
     /* DecoderSpecificInfo */
     m4af_write_descriptor(ctx, 5, track->decSpecificInfoSize);
     m4af_write(ctx, track->decSpecificInfo, track->decSpecificInfoSize);

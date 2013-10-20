@@ -97,6 +97,8 @@ int m4af_write_sample(m4af_ctx_t *ctx, uint32_t track_idx, const void *data,
 int m4af_set_decoder_specific_info(m4af_ctx_t *ctx, uint32_t track_idx,
                                    uint8_t *data, uint32_t size);
 
+void m4af_set_vbr_mode(m4af_ctx_t *ctx, uint32_t track_idx, int is_vbr);
+
 void m4af_set_priming(m4af_ctx_t *ctx, uint32_t track_idx,
                       uint32_t encoder_delay, uint32_t padding);
 
