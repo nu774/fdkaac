@@ -1,6 +1,18 @@
+2013-10-21  nu774 <honeycomb77@gmail.com>
+
+  * bump version [HEAD]
+
+2013-10-20  nu774 <honeycomb77@gmail.com>
+
+  * reimplement int16 conversion as pcm_reader
+
+  * add abstraction layer for pcm reading
+
+  * improve handling of avgBitrate
+
 2013-10-19  nu774 <honeycomb77@gmail.com>
 
-  * update ChangeLog and git2changelog.py [HEAD]
+  * update ChangeLog and git2changelog.py [origin/master]
 
 2013-10-18  nu774 <honeycomb77@gmail.com>
 
