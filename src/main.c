@@ -493,9 +493,7 @@ int encode(pcm_reader_t *reader, HANDLE_AACENCODER encoder,
            uint32_t frame_length, FILE *ofp, m4af_ctx_t *m4af,
            int show_progress)
 {
-    uint8_t *ibuf = 0;
-    int16_t *pcmbuf = 0;
-    uint32_t pcmsize = 0;
+    int16_t *ibuf = 0;
     uint8_t *obuf = 0;
     uint32_t olen;
     uint32_t osize = 0;
@@ -515,18 +513,12 @@ int encode(pcm_reader_t *reader, HANDLE_AACENCODER encoder,
             if ((nread = pcm_read_frames(reader, ibuf, frame_length)) < 0) {
                 fprintf(stderr, "ERROR: read failed\n");
                 goto END;
-            } else if (nread > 0) {
-                if (pcm_convert_to_native_sint16(fmt, ibuf, nread,
-                                                 &pcmbuf, &pcmsize) < 0) {
-                    fprintf(stderr, "ERROR: unsupported sample format\n");
-                    goto END;
-                }
             }
             if (show_progress)
                 aacenc_progress_update(&progress, pcm_get_position(reader),
                                        fmt->sample_rate * 2);
         }
-        if ((consumed = aac_encode_frame(encoder, fmt, pcmbuf, nread,
+        if ((consumed = aac_encode_frame(encoder, fmt, ibuf, nread,
                                          &obuf, &olen, &osize)) < 0)
             goto END;
         if (olen > 0) {
@@ -541,7 +533,6 @@ int encode(pcm_reader_t *reader, HANDLE_AACENCODER encoder,
     rc = frames_written;
 END:
     if (ibuf) free(ibuf);
-    if (pcmbuf) free(pcmbuf);
     if (obuf) free(obuf);
     return rc;
 }
@@ -693,8 +684,9 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
             goto END;
         }
     }
+    return pcm_open_sint16_converter(reader);
 END:
-    return reader;
+    return 0;
 }
 
 int main(int argc, char **argv)

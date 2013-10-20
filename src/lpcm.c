@@ -187,14 +187,14 @@ inline int16_t pcm_f64be_to_s16(int64_t n)
 
 int pcm_convert_to_native_sint16(const pcm_sample_description_t *format,
                                  const void *input, uint32_t nframes,
-                                 int16_t **result, uint32_t *osize)
+                                 int16_t *result)
 {
 #define CONVERT(type, conv) \
     do { \
         unsigned i; \
         type *ip = (type *)input; \
         for (i = 0; i < count; ++i) { \
-            (*result)[i] = conv(ip[i]); \
+            result[i] = conv(ip[i]); \
         } \
     } while(0)
 
@@ -204,7 +204,7 @@ int pcm_convert_to_native_sint16(const pcm_sample_description_t *format,
         uint8_t *ip = (uint8_t *)input; \
         bytes_per_channel = PCM_BYTES_PER_CHANNEL(format); \
         for (i = 0; i < count; ++i) { \
-            (*result)[i] = conv(ip); \
+            result[i] = conv(ip); \
             ip += bytes_per_channel; \
         } \
     } while(0)
@@ -212,11 +212,6 @@ int pcm_convert_to_native_sint16(const pcm_sample_description_t *format,
     uint32_t count = nframes * format->channels_per_frame;
     if (!count)
         return 0;
-    if (!*result || *osize < count) {
-        *osize  = count;
-        *result = realloc(*result, count * sizeof(int16_t));
-    }
-
     switch (PCM_BYTES_PER_CHANNEL(format) | format->sample_type<<4) {
     case 1 | PCM_TYPE_SINT<<4:
         CONVERT(int8_t, pcm_s8_to_s16); break;

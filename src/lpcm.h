@@ -33,5 +33,5 @@ typedef struct pcm_sample_description_t {
 
 int pcm_convert_to_native_sint16(const pcm_sample_description_t *format,
                                  const void *input, uint32_t nframes,
-                                 int16_t **result, uint32_t *osize);
+                                 int16_t *result);
 #endif

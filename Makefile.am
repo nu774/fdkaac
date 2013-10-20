@@ -4,13 +4,14 @@ AUTOMAKE_OPTIONS = subdir-objects
 bin_PROGRAMS = fdkaac
 
 fdkaac_SOURCES = \
-    src/aacenc.c     \
-    src/lpcm.c       \
-    src/m4af.c       \
-    src/main.c       \
-    src/metadata.c   \
-    src/parson.c     \
-    src/progress.c   \
+    src/aacenc.c               \
+    src/lpcm.c                 \
+    src/m4af.c                 \
+    src/main.c                 \
+    src/metadata.c             \
+    src/parson.c               \
+    src/pcm_sint16_converter.c \
+    src/progress.c             \
     src/wav_reader.c
 
 fdkaac_LDADD = \

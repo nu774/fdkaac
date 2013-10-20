@@ -1,6 +1,8 @@
 #ifndef PCM_READER_H
 #define PCM_READER_H
 
+#include "lpcm.h"
+
 typedef struct pcm_reader_t pcm_reader_t;
 
 typedef struct pcm_reader_vtbl_t {
@@ -44,5 +46,7 @@ void pcm_teardown(pcm_reader_t **r)
 {
     (*r)->vtbl->teardown(r);
 }
+
+pcm_reader_t *pcm_open_sint16_converter(pcm_reader_t *reader);
 
 #endif
