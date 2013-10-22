@@ -866,15 +866,14 @@ void m4af_write_sgpd_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     m4af_write(ctx,
-               "\0\0\0\032"  /* size               */
+               "\0\0\0\026"  /* size: 22           */
                "sgpd"        /* type               */
-               "\001"        /* version            */
+               "\0"          /* version            */
                "\0\0\0"      /* flags              */
                "roll"        /* grouping_type      */
-               "\0\0\0\002"  /* default_length: 2  */
                "\0\0\0\001"  /* entry_count: 1     */
                "\377\377"    /* payload_data: -1   */
-               , 26);
+               , 22);
 }
 
 static
