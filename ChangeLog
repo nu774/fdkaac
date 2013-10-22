@@ -1,6 +1,12 @@
-2013-10-21  nu774 <honeycomb77@gmail.com>
+2013-10-22  nu774 <honeycomb77@gmail.com>
 
   * bump version [HEAD]
+
+  * fixed bogus sgpd written on --gapless-mode=1 and 2
+
+2013-10-21  nu774 <honeycomb77@gmail.com>
+
+  * bump version [v0.3.2]
 
 2013-10-20  nu774 <honeycomb77@gmail.com>
 
@@ -12,7 +18,7 @@
 
 2013-10-19  nu774 <honeycomb77@gmail.com>
 
-  * update ChangeLog and git2changelog.py [origin/master]
+  * update ChangeLog and git2changelog.py
 
 2013-10-18  nu774 <honeycomb77@gmail.com>
 
