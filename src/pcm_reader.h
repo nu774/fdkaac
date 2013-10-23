@@ -17,6 +17,21 @@ struct pcm_reader_t {
     pcm_reader_vtbl_t *vtbl;
 };
 
+typedef int (*pcm_read_callback)(void *cookie, void *data, uint32_t count);
+typedef int (*pcm_seek_callback)(void *cookie, int64_t off, int whence);
+typedef int64_t (*pcm_tell_callback)(void *cookie);
+
+typedef struct pcm_io_vtbl_t {
+    pcm_read_callback read;
+    pcm_seek_callback seek;
+    pcm_tell_callback tell;
+} pcm_io_vtbl_t;
+
+typedef struct pcm_io_context_t {
+    pcm_io_vtbl_t *vtbl;
+    void *cookie;
+} pcm_io_context_t;
+
 static inline
 const pcm_sample_description_t *pcm_get_format(pcm_reader_t *r)
 {
@@ -48,5 +63,32 @@ void pcm_teardown(pcm_reader_t **r)
 }
 
 pcm_reader_t *pcm_open_sint16_converter(pcm_reader_t *reader);
+
+#define TRY_IO(expr) \
+    do { \
+        if ((expr)) goto FAIL; \
+    } while (0)
+
+int pcm_read(pcm_io_context_t *io, void *buffer, uint32_t size);
+int pcm_skip(pcm_io_context_t *io, int64_t count);
+
+static int pcm_seek(pcm_io_context_t *io, int64_t off, int whence)
+{
+    return io->vtbl->seek ? io->vtbl->seek(io->cookie, off, whence) : -1;
+}
+
+static inline int64_t pcm_tell(pcm_io_context_t *io)
+{
+    return io->vtbl->tell ? io->vtbl->tell(io->cookie) : -1;
+}
+
+int pcm_read16le(pcm_io_context_t *io, uint16_t *value);
+int pcm_read16be(pcm_io_context_t *io, uint16_t *value);
+int pcm_read32le(pcm_io_context_t *io, uint32_t *value);
+int pcm_read32be(pcm_io_context_t *io, uint32_t *value);
+int pcm_read64le(pcm_io_context_t *io, uint64_t *value);
+int pcm_read64be(pcm_io_context_t *io, uint64_t *value);
+int pcm_scanl(pcm_io_context_t *io, const char *fmt, ...);
+int pcm_scanb(pcm_io_context_t *io, const char *fmt, ...);
 
 #endif

@@ -102,6 +102,7 @@ copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\ </Command>
     <ClCompile Include="..\src\main.c" />
     <ClCompile Include="..\src\metadata.c" />
     <ClCompile Include="..\src\parson.c" />
+    <ClCompile Include="..\src\pcm_readhelper.c" />
     <ClCompile Include="..\src\pcm_sint16_converter.c" />
     <ClCompile Include="..\src\progress.c" />
     <ClCompile Include="..\src\wav_reader.c" />
@@ -115,6 +116,7 @@ copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\ </Command>
     <ClInclude Include="..\src\m4af_endian.h" />
     <ClInclude Include="..\src\metadata.h" />
     <ClInclude Include="..\src\parson.h" />
+    <ClInclude Include="..\src\pcm_reader.h" />
     <ClInclude Include="..\src\progress.h" />
     <ClInclude Include="..\src\wav_reader.h" />
   </ItemGroup>

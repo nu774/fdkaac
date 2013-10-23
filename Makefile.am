@@ -10,6 +10,7 @@ fdkaac_SOURCES = \
     src/main.c                 \
     src/metadata.c             \
     src/parson.c               \
+    src/pcm_readhelper.c       \
     src/pcm_sint16_converter.c \
     src/progress.c             \
     src/wav_reader.c

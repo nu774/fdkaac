@@ -643,12 +643,15 @@ int parse_raw_spec(const char *spec, pcm_sample_description_t *desc)
     return 0;
 }
 
+static pcm_io_vtbl_t pcm_io_vtbl = {
+    read_callback, seek_callback, tell_callback
+};
+static pcm_io_vtbl_t pcm_io_vtbl_noseek = { read_callback, 0, 0 };
+
 static
 pcm_reader_t *open_input(aacenc_param_ex_t *params)
 {
-    wav_io_context_t wav_io = {
-        read_callback, seek_callback, tell_callback
-    };
+    pcm_io_context_t io = { 0 };
     pcm_reader_t *reader = 0;
     struct stat stb = { 0 };
 
@@ -657,11 +660,13 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
                        strerror(errno));
         goto END;
     }
-    if (fstat(fileno(params->input_fp), &stb) == 0
-            && (stb.st_mode & S_IFMT) != S_IFREG) {
-        wav_io.seek = 0;
-        wav_io.tell = 0;
-    }
+    io.cookie = params->input_fp;
+    if (fstat(fileno(io.cookie), &stb) == 0
+            && (stb.st_mode & S_IFMT) == S_IFREG)
+        io.vtbl = &pcm_io_vtbl;
+    else
+        io.vtbl = &pcm_io_vtbl_noseek;
+
     if (params->is_raw) {
         int bytes_per_channel;
         pcm_sample_description_t desc = { 0 };
@@ -673,13 +678,12 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
         desc.channels_per_frame = params->raw_channels;
         bytes_per_channel = (desc.bits_per_channel + 7) / 8;
         desc.bytes_per_frame = params->raw_channels * bytes_per_channel;
-        if ((reader = raw_open(&wav_io, params->input_fp, &desc)) == 0) {
+        if ((reader = raw_open(&io, &desc)) == 0) {
             fprintf(stderr, "ERROR: failed to open raw input\n");
             goto END;
         }
     } else {
-        if ((reader = wav_open(&wav_io, params->input_fp,
-                               params->ignore_length)) == 0) {
+        if ((reader = wav_open(&io, params->ignore_length)) == 0) {
             fprintf(stderr, "ERROR: broken / unsupported input file\n");
             goto END;
         }
