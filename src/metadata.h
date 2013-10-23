@@ -1,28 +1,44 @@
 #ifndef METADATA_H
 #define METADATA_H
 
+#include "m4af.h"
+
 typedef struct aacenc_tag_entry_t {
-    uint32_t    tag;
-    const char *name;
-    const char *data;
-    uint32_t    data_size;
-    int         is_file_name;
+    uint32_t tag;
+    char    *name;
+    char    *data;
+    uint32_t data_size;
 } aacenc_tag_entry_t;
 
-typedef struct aacenc_tag_param_t {
+typedef struct aacenc_tag_store_t {
     aacenc_tag_entry_t *tag_table;
     unsigned tag_count;
     unsigned tag_table_capacity;
-} aacenc_tag_param_t;
+} aacenc_tag_store_t;
 
-char *aacenc_load_tag_from_file(const char *path, uint32_t *data_size);
+typedef struct aacenc_translate_generic_text_tag_ctx_t {
+    unsigned track, track_total, disc, disc_total;
+    void   (*add)(void *, const aacenc_tag_entry_t *);
+    void    *add_ctx;
+} aacenc_translate_generic_text_tag_ctx_t;
 
-void aacenc_param_add_itmf_entry(aacenc_tag_param_t *params, uint32_t tag,
-                                 const char *key, const char *value,
-                                 uint32_t size, int is_file_name);
+typedef void (*aacenc_tag_callback_t)(void *ctx, const char *key,
+                                      const char *value, uint32_t size);
 
-void aacenc_put_tags_from_json(m4af_ctx_t *m4af, const char *json_filename);
+void aacenc_translate_generic_text_tag(void *ctx, const char *key,
+                                       const char *val, uint32_t size);
 
-void aacenc_put_tag_entry(m4af_ctx_t *m4af, const aacenc_tag_entry_t *tag);
+
+void aacenc_add_tag_to_store(aacenc_tag_store_t *store, uint32_t tag,
+                             const char *key, const char *value,
+                             uint32_t size, int is_file_name);
+
+void aacenc_add_tag_entry_to_store(void *store, const aacenc_tag_entry_t *tag);
+
+void aacenc_free_tag_store(aacenc_tag_store_t *store);
+
+void aacenc_write_tags_from_json(m4af_ctx_t *m4af, const char *json_filename);
+
+void aacenc_write_tag_entry(void *m4af, const aacenc_tag_entry_t *tag);
 
 #endif

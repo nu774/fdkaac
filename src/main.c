@@ -216,7 +216,7 @@ typedef struct aacenc_param_ex_t {
     unsigned raw_rate;
     const char *raw_format;
 
-    aacenc_tag_param_t tags;
+    aacenc_tag_store_t tags;
 
     char *json_filename;
 } aacenc_param_ex_t;
@@ -398,8 +398,8 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         case M4AF_TAG_TRACK:
         case M4AF_TAG_DISK:
         case M4AF_TAG_TEMPO:
-            aacenc_param_add_itmf_entry(&params->tags, ch, 0, optarg,
-                                        strlen(optarg), 0);
+            aacenc_add_tag_to_store(&params->tags, ch, 0, optarg,
+                                    strlen(optarg), 0);
             break;
         case OPT_SHORT_TAG:
         case OPT_SHORT_TAG_FILE:
@@ -432,9 +432,9 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
                     for (; *optarg; ++optarg)
                         fcc = ((fcc << 8) | (*optarg & 0xff));
                 }
-                aacenc_param_add_itmf_entry(&params->tags, fcc, optarg,
-                                            val, strlen(val),
-                                            ch == OPT_SHORT_TAG_FILE);
+                aacenc_add_tag_to_store(&params->tags, fcc, optarg,
+                                        val, strlen(val),
+                                        ch == OPT_SHORT_TAG_FILE);
             }
             break;
         case OPT_TAG_FROM_JSON:
@@ -573,10 +573,10 @@ int finalize_m4a(m4af_ctx_t *m4af, const aacenc_param_ex_t *params,
     aacenc_tag_entry_t *tag = params->tags.tag_table;
 
     if (params->json_filename)
-        aacenc_put_tags_from_json(m4af, params->json_filename);
+        aacenc_write_tags_from_json(m4af, params->json_filename);
 
     for (i = 0; i < params->tags.tag_count; ++i, ++tag)
-        aacenc_put_tag_entry(m4af, tag);
+        aacenc_write_tag_entry(m4af, tag);
 
     put_tool_tag(m4af, params, encoder);
 
@@ -774,7 +774,7 @@ END:
     if (params.output_fp) fclose(params.output_fp);
     if (encoder) aacEncClose(&encoder);
     if (output_filename) free(output_filename);
-    if (params.tags.tag_table) free(params.tags.tag_table);
+    if (params.tags.tag_table) aacenc_free_tag_store(&params.tags);
 
     return result;
 }
