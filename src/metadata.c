@@ -154,7 +154,7 @@ void tag_put_number_pair(m4af_ctx_t *m4af, uint32_t fcc,
     char buf[128];
     aacenc_tag_entry_t entry = { 0 };
 
-    if (snumber) sscanf(snumber, "%u", &number);
+    if (snumber) sscanf(snumber, "%u/%u", &number, &total);
     if (stotal)  sscanf(stotal,  "%u", &total);
     if (number) {
         if (total) sprintf(buf, "%u/%u", number, total);
