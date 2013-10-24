@@ -34,9 +34,16 @@ MSVC solution for Visual Studio 2010 is under MSVC directory.
 
 Available input format
 ----------------------
-WAV (or RF64), upto 32bit int / 64bit float format is supported.
-However, since FDK AAC encoder is implemented based on fixed point integer,
-encoder itself treats 16bit input only.
+WAV, RF64, CAF, RAW, upto 32bit int / 64bit float format is supported.
+Metadata in CAF info chunk can be read and copied to the resulting m4a.
+This is especially useful and works well when you pipe from ffmpeg via CAF.
+For example, you can copy tag from original "foo.flac" to "foo.m4a"
+through the following pipeline:
+
+$ ffmpeg -i foo.flac -f caf - | fdkaac -m3 - -o foo.m4a
+
+Since FDK AAC encoder is implemented based on fixed point integer,
+encoder itself handles 16bit input only.
 Therefore, when feeding non-integer input, be careful so that input doesn't
 exceed 0dBFS to avoid hard clips.
 You might also want to apply dither/noise shape beforehand when your input
