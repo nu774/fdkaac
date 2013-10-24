@@ -1,6 +1,26 @@
+2013-10-25  nu774 <honeycomb77@gmail.com>
+
+  * update ChangeLog [HEAD]
+
+  * bump version [v0.4.0]
+
+  * update README
+
+2013-10-24  nu774 <honeycomb77@gmail.com>
+
+  * caf input support
+
+  * refactor pcm io routines
+
+2013-10-23  nu774 <honeycomb77@gmail.com>
+
+  * cleanup metadata handling
+
+  * --tag-from-json: properly support number/total format in json track field
+
 2013-10-22  nu774 <honeycomb77@gmail.com>
 
-  * bump version [HEAD]
+  * bump version [v0.3.3]
 
   * fixed bogus sgpd written on --gapless-mode=1 and 2
 
