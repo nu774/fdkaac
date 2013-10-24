@@ -96,6 +96,7 @@ copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\ </Command>
   <ItemGroup>
     <ClCompile Include="..\missings\getopt.c" />
     <ClCompile Include="..\src\aacenc.c" />
+    <ClCompile Include="..\src\caf_reader.c" />
     <ClCompile Include="..\src\compat_win32.c" />
     <ClCompile Include="..\src\lpcm.c" />
     <ClCompile Include="..\src\m4af.c" />

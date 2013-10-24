@@ -18,12 +18,7 @@
 
 #define RIFF_FOURCC(a,b,c,d) ((a)|((b)<<8)|((c)<<16)|((d)<<24))
 
-#define ENSURE(expr) \
-    do { \
-        if (!(expr)) goto FAIL;\
-    } while (0)
-
-struct wav_reader_t {
+typedef struct wav_reader_t {
     pcm_reader_vtbl_t *vtbl;
     pcm_sample_description_t sample_format;
     int64_t length;
@@ -31,7 +26,7 @@ struct wav_reader_t {
     int32_t data_offset;
     int ignore_length;
     pcm_io_context_t io;
-};
+} wav_reader_t;
 
 static const uint8_t WAV_GUID_PCM[] = {
     1, 0, 0, 0, 0, 0, 0x10, 0, 0x80, 0, 0, 0xaa, 0, 0x38, 0x9b, 0x71

@@ -18,6 +18,9 @@
     <ClCompile Include="..\src\aacenc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\caf_reader.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\compat_win32.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -28,6 +31,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\pcm_readhelper.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\pcm_sint16_converter.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\progress.c">
@@ -42,6 +51,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\aacenc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\caf_reader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\catypes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\compat.h">

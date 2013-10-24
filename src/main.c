@@ -34,6 +34,7 @@
 #endif
 #include "compat.h"
 #include "wav_reader.h"
+#include "caf_reader.h"
 #include "aacenc.h"
 #include "m4af.h"
 #include "progress.h"
@@ -217,6 +218,8 @@ typedef struct aacenc_param_ex_t {
     const char *raw_format;
 
     aacenc_tag_store_t tags;
+    aacenc_tag_store_t source_tags;
+    aacenc_translate_generic_text_tag_ctx_t source_tag_ctx;
 
     char *json_filename;
 } aacenc_param_ex_t;
@@ -570,11 +573,16 @@ int finalize_m4a(m4af_ctx_t *m4af, const aacenc_param_ex_t *params,
                  HANDLE_AACENCODER encoder)
 {
     unsigned i;
-    aacenc_tag_entry_t *tag = params->tags.tag_table;
+    aacenc_tag_entry_t *tag;
+    
+    tag = params->source_tags.tag_table;
+    for (i = 0; i < params->source_tags.tag_count; ++i, ++tag)
+        aacenc_write_tag_entry(m4af, tag);
 
     if (params->json_filename)
         aacenc_write_tags_from_json(m4af, params->json_filename);
 
+    tag = params->tags.tag_table;
     for (i = 0; i < params->tags.tag_count; ++i, ++tag)
         aacenc_write_tag_entry(m4af, tag);
 
@@ -683,8 +691,27 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
             goto END;
         }
     } else {
-        if ((reader = wav_open(&io, params->ignore_length)) == 0) {
-            fprintf(stderr, "ERROR: broken / unsupported input file\n");
+        int c;
+        ungetc(c = getc(params->input_fp), params->input_fp);
+
+        switch (c) {
+        case 'R':
+            if ((reader = wav_open(&io, params->ignore_length)) == 0) {
+                fprintf(stderr, "ERROR: broken / unsupported input file\n");
+                goto END;
+            }
+            break;
+        case 'c':
+            params->source_tag_ctx.add = aacenc_add_tag_entry_to_store;
+            params->source_tag_ctx.add_ctx = &params->source_tags;
+            if ((reader = caf_open(&io,
+                                   aacenc_translate_generic_text_tag,
+                                   &params->source_tag_ctx)) == 0) {
+                fprintf(stderr, "ERROR: broken / unsupported input file\n");
+                goto END;
+            }
+            break;
+        default:
             goto END;
         }
     }
@@ -778,7 +805,10 @@ END:
     if (params.output_fp) fclose(params.output_fp);
     if (encoder) aacEncClose(&encoder);
     if (output_filename) free(output_filename);
-    if (params.tags.tag_table) aacenc_free_tag_store(&params.tags);
+    if (params.tags.tag_table)
+        aacenc_free_tag_store(&params.tags);
+    if (params.source_tags.tag_table)
+        aacenc_free_tag_store(&params.source_tags);
 
     return result;
 }

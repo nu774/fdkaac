@@ -8,8 +8,6 @@
 #include "lpcm.h"
 #include "pcm_reader.h"
 
-typedef struct wav_reader_t wav_reader_t;
-
 pcm_reader_t *wav_open(pcm_io_context_t *io, int ignore_length);
 pcm_reader_t *raw_open(pcm_io_context_t *io,
                        const pcm_sample_description_t *desc);

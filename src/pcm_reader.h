@@ -62,11 +62,24 @@ void pcm_teardown(pcm_reader_t **r)
     (*r)->vtbl->teardown(r);
 }
 
-pcm_reader_t *pcm_open_sint16_converter(pcm_reader_t *reader);
+static inline
+uint32_t bitcount(uint32_t bits)
+{
+    bits = (bits & 0x55555555) + (bits >> 1 & 0x55555555);
+    bits = (bits & 0x33333333) + (bits >> 2 & 0x33333333);
+    bits = (bits & 0x0f0f0f0f) + (bits >> 4 & 0x0f0f0f0f);
+    bits = (bits & 0x00ff00ff) + (bits >> 8 & 0x00ff00ff);
+    return (bits & 0x0000ffff) + (bits >>16 & 0x0000ffff);
+}
 
 #define TRY_IO(expr) \
     do { \
         if ((expr)) goto FAIL; \
+    } while (0)
+
+#define ENSURE(expr) \
+    do { \
+        if (!(expr)) goto FAIL;\
     } while (0)
 
 int pcm_read(pcm_io_context_t *io, void *buffer, uint32_t size);
@@ -90,5 +103,10 @@ int pcm_read64le(pcm_io_context_t *io, uint64_t *value);
 int pcm_read64be(pcm_io_context_t *io, uint64_t *value);
 int pcm_scanl(pcm_io_context_t *io, const char *fmt, ...);
 int pcm_scanb(pcm_io_context_t *io, const char *fmt, ...);
+
+int apple_chan_chunk(pcm_io_context_t *io, uint32_t chunk_size,
+                     pcm_sample_description_t *fmt, uint8_t *mapping);
+
+pcm_reader_t *pcm_open_sint16_converter(pcm_reader_t *reader);
 
 #endif
