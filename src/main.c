@@ -669,7 +669,7 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
         goto END;
     }
     io.cookie = params->input_fp;
-    if (fstat(fileno(io.cookie), &stb) == 0
+    if (fstat(fileno(params->input_fp), &stb) == 0
             && (stb.st_mode & S_IFMT) == S_IFREG)
         io.vtbl = &pcm_io_vtbl;
     else
