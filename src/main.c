@@ -149,6 +149,9 @@ PROGNAME " %s\n"
 "                                 0: iTunSMPB (default)\n"
 "                                 1: ISO standard (edts + sgpd)\n"
 "                                 2: Both\n"
+" --include-sbr-delay           Count SBR decoder delay in encoder delay\n"
+"                               This is not iTunes compatible, but is default\n"
+"                               behavior of FDK library.\n"
 " -I, --ignorelength            Ignore length of WAV header\n"
 " -S, --silent                  Don't print progress messages\n"
 " --moov-before-mdat            Place moov box before mdat box on m4a output\n"
@@ -204,6 +207,7 @@ typedef struct aacenc_param_ex_t {
     char *output_filename;
     FILE *output_fp;
     unsigned gapless_mode;
+    unsigned include_sbr_delay;
     unsigned ignore_length;
     int silent;
     int moov_before_mdat;
@@ -226,6 +230,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
     int ch;
     unsigned n;
 
+#define OPT_INCLUDE_SBR_DELAY    M4AF_FOURCC('s','d','l','y')
 #define OPT_MOOV_BEFORE_MDAT     M4AF_FOURCC('m','o','o','v')
 #define OPT_RAW_CHANNELS         M4AF_FOURCC('r','c','h','n')
 #define OPT_RAW_RATE             M4AF_FOURCC('r','r','a','t')
@@ -248,6 +253,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "header-period",    required_argument, 0, 'P' },
 
         { "gapless-mode",     required_argument, 0, 'G' },
+        { "include-sbr-delay", no_argument,      0, OPT_INCLUDE_SBR_DELAY  },
         { "ignorelength",     no_argument,       0, 'I' },
         { "silent",           no_argument,       0, 'S' },
         { "moov-before-mdat", no_argument,       0, OPT_MOOV_BEFORE_MDAT   },
@@ -347,6 +353,9 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
                 return -1;
             }
             params->gapless_mode = n;
+            break;
+        case OPT_INCLUDE_SBR_DELAY:
+            params->include_sbr_delay = 1;
             break;
         case 'I':
             params->ignore_length = 1;
@@ -791,9 +800,15 @@ int main(int argc, char **argv)
         goto END;
     if (m4af) {
         uint32_t delay = aacinfo.encoderDelay;
+        uint32_t padding;
         int64_t frames_read = pcm_get_position(reader);
-        uint32_t padding = frame_count * aacinfo.frameLength
-                            - frames_read - aacinfo.encoderDelay;
+
+        if (sbr_mode && params.profile != AOT_ER_AAC_ELD &&
+            !params.include_sbr_delay)
+            delay -= 481 << 1;
+        if (sbr_mode && (delay & 1))
+            ++delay;
+        padding = frame_count * aacinfo.frameLength - frames_read - delay;
         m4af_set_priming(m4af, 0, delay >> downsampled_timescale,
                          padding >> downsampled_timescale);
         if (finalize_m4a(m4af, &params, encoder) < 0)
