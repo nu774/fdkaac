@@ -133,10 +133,6 @@ PROGNAME " %s\n"
 "                                 0: Off\n"
 "                                 1: On(default)\n"
 " -L, --lowdelay-sbr            Enable ELD-SBR (AAC ELD only)\n"
-" -s, --sbr-signaling <n>       SBR signaling mode\n"
-"                                 0: Implicit, backward compatible(default)\n"
-"                                 1: Explicit SBR and implicit PS\n"
-"                                 2: Explicit hierarchical signaling\n"
 " -f, --transport-format <n>    Transport format\n"
 "                                 0: RAW (default, muxed into M4A)\n"
 "                                 1: ADIF\n"
@@ -247,7 +243,6 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "bandwidth",        required_argument, 0, 'w' },
         { "afterburner",      required_argument, 0, 'a' },
         { "lowdelay-sbr",     no_argument,       0, 'L' },
-        { "sbr-signaling",    required_argument, 0, 's' },
         { "transport-format", required_argument, 0, 'f' },
         { "adts-crc-check",   no_argument,       0, 'C' },
         { "header-period",    required_argument, 0, 'P' },
@@ -325,13 +320,6 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
             break;
         case 'L':
             params->lowdelay_sbr = 1;
-            break;
-        case 's':
-            if (sscanf(optarg, "%u", &n) != 1 || n > 2) {
-                fprintf(stderr, "invalid arg for sbr-signaling\n");
-                return -1;
-            }
-            params->sbr_signaling = n;
             break;
         case 'f':
             if (sscanf(optarg, "%u", &n) != 1) {
@@ -736,6 +724,7 @@ int main(int argc, char **argv)
     const pcm_sample_description_t *sample_format;
     int downsampled_timescale = 0;
     int frame_count = 0;
+    int sbr_mode = 0;
 
     setlocale(LC_CTYPE, "");
     setbuf(stderr, 0);
@@ -747,6 +736,17 @@ int main(int argc, char **argv)
         goto END;
 
     sample_format = pcm_get_format(reader);
+
+    /*
+     * We use explicit/hierarchical signaling for LOAS.
+     * Other than that, we request implicit signaling to FDK library, then 
+     * append explicit/backward-compatible signaling to ASC in case of MP4FF.
+     *
+     * Explicit/backward-compatible signaling of SBR is the most recommended
+     * way in MPEG4 part3 spec, and seems the only way supported by iTunes.
+     * Since FDK library does not support it, we have to do it on our side.
+     */
+    params.sbr_signaling = (params.transport_format == TT_MP4_LOAS) ? 2 : 0;
 
     if (aacenc_init(&encoder, (aacenc_param_t*)&params, sample_format,
                     &aacinfo) < 0)
@@ -764,19 +764,21 @@ int main(int argc, char **argv)
         goto END;
     }
     handle_signals();
+    sbr_mode = aacenc_is_sbr_active((aacenc_param_t*)&params);
     if (!params.transport_format) {
         uint32_t scale;
+        uint8_t mp4asc[32];
+        uint32_t ascsize = sizeof(mp4asc);
         unsigned framelen = aacinfo.frameLength;
-        int sbr_mode = aacenc_is_sbr_active((aacenc_param_t*)&params);
-        int sig_mode = aacEncoder_GetParam(encoder, AACENC_SIGNALING_MODE);
-        if (sbr_mode && !sig_mode)
+        if (sbr_mode)
             downsampled_timescale = 1;
         scale = sample_format->sample_rate >> downsampled_timescale;
         if ((m4af = m4af_create(M4AF_CODEC_MP4A, scale, &m4af_io,
                                 params.output_fp)) < 0)
             goto END;
-        m4af_set_decoder_specific_info(m4af, 0, aacinfo.confBuf,
-                                       aacinfo.confSize);
+        aacenc_mp4asc((aacenc_param_t*)&params, aacinfo.confBuf,
+                      aacinfo.confSize, mp4asc, &ascsize);
+        m4af_set_decoder_specific_info(m4af, 0, mp4asc, ascsize);
         m4af_set_fixed_frame_duration(m4af, 0,
                                       framelen >> downsampled_timescale);
         m4af_set_vbr_mode(m4af, 0, params.bitrate_mode);

@@ -26,6 +26,10 @@ typedef struct aacenc_param_t {
 
 int aacenc_is_sbr_active(const aacenc_param_t *params);
 
+int aacenc_mp4asc(const aacenc_param_t *params,
+                  const uint8_t *asc, uint32_t ascsize,
+                  uint8_t *outasc, uint32_t *outsize);
+
 int aacenc_init(HANDLE_AACENCODER *encoder, const aacenc_param_t *params,
                 const pcm_sample_description_t *format,
                 AACENC_InfoStruct *info);
