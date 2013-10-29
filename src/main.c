@@ -823,6 +823,16 @@ int main(int argc, char **argv)
         m4af_set_priming_mode(m4af, params.gapless_mode + 1);
         m4af_begin_write(m4af);
     }
+    if (sbr_mode && (aacinfo.encoderDelay & 1)) {
+        /*
+         * Since odd delay cannot be exactly expressed in downsampled scale,
+         * we push one zero frame to the encoder here, to make delay even
+         */
+        int16_t zero[8] = { 0 };
+        aacenc_result_t obuf = { 0 };
+        aac_encode_frame(encoder, sample_format, zero, 1, &obuf);
+        free(obuf.data);
+    }
     frame_count = encode(&params, reader, encoder, aacinfo.frameLength, m4af);
     if (frame_count < 0)
         goto END;
