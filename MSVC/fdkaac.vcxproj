@@ -111,6 +111,8 @@ copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\ </Command>
   <ItemGroup>
     <ClInclude Include="..\missings\getopt.h" />
     <ClInclude Include="..\src\aacenc.h" />
+    <ClInclude Include="..\src\caf_reader.h" />
+    <ClInclude Include="..\src\catypes.h" />
     <ClInclude Include="..\src\compat.h" />
     <ClInclude Include="..\src\lpcm.h" />
     <ClInclude Include="..\src\m4af.h" />
