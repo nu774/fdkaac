@@ -1,3 +1,7 @@
+/* 
+ * Copyright (C) 2013 nu774
+ * For conditions of distribution and use, see copyright notice in COPYING
+ */
 #ifndef PCM_READER_H
 #define PCM_READER_H
 
