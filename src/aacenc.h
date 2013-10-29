@@ -24,6 +24,11 @@ typedef struct aacenc_param_t {
     AACENC_PARAMS
 } aacenc_param_t;
 
+typedef struct aacenc_result_t {
+    uint8_t *data;
+    uint32_t len, size;
+} aacenc_result_t;
+
 int aacenc_is_sbr_active(const aacenc_param_t *params);
 
 int aacenc_mp4asc(const aacenc_param_t *params,
@@ -37,6 +42,6 @@ int aacenc_init(HANDLE_AACENCODER *encoder, const aacenc_param_t *params,
 int aac_encode_frame(HANDLE_AACENCODER encoder,
                      const pcm_sample_description_t *format,
                      const int16_t *input, unsigned iframes,
-                     uint8_t **output, uint32_t *olen, uint32_t *osize);
+                     aacenc_result_t *output);
 
 #endif

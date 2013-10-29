@@ -493,12 +493,8 @@ int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
            HANDLE_AACENCODER encoder, uint32_t frame_length, 
            m4af_ctx_t *m4af)
 {
-    struct buffer_t {
-        uint8_t *data;
-        uint32_t len, size;
-    };
     int16_t *ibuf = 0, *ip;
-    struct buffer_t obuf[2] = {{ 0 }}, *obp;
+    aacenc_result_t obuf[2] = {{ 0 }}, *obp;
     unsigned flip = 0;
     int nread = 1;
     int rc = -1;
@@ -530,8 +526,7 @@ int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
         remaining = nread;
         do {
             obp = &obuf[flip];
-            consumed = aac_encode_frame(encoder, fmt, ip, remaining,
-                                        &obp->data, &obp->len, &obp->size);
+            consumed = aac_encode_frame(encoder, fmt, ip, remaining, obp);
             if (consumed < 0) goto END;
             if (consumed == 0 && obp->len == 0) goto DONE;
             if (obp->len == 0) break;
