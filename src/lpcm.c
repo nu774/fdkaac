@@ -13,35 +13,6 @@
 #include "lpcm.h"
 #include "m4af_endian.h"
 
-#if defined(_MSC_VER) && _MSC_VER < 1800
-#  ifdef _M_IX86
-inline int lrint(double x)
-{
-    int n;
-    _asm {
-        fld x
-        fistp n
-    }
-    return n;
-}
-#  else
-#    include <emmintrin.h>
-inline int lrint(double x)
-{
-    return _mm_cvtsd_si32(_mm_load_sd(&x));
-}
-#  endif
-#endif
-
-static
-inline double pcm_clip(double n, double min_value, double max_value)
-{
-    if (n < min_value)
-        return min_value;
-    else if (n > max_value)
-        return max_value;
-    return n;
-}
 static
 inline float pcm_i2f(int32_t n)
 {

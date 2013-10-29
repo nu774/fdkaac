@@ -231,5 +231,5 @@ int aac_encode_frame(HANDLE_AACENCODER encoder,
         return -1;
     }
     *olen = oargs.numOutBytes;
-    return oargs.numInSamples;
+    return oargs.numInSamples / format->channels_per_frame;
 }

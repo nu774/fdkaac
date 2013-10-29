@@ -109,4 +109,6 @@ int apple_chan_chunk(pcm_io_context_t *io, uint32_t chunk_size,
 
 pcm_reader_t *pcm_open_sint16_converter(pcm_reader_t *reader);
 
+pcm_reader_t *extrapolater_open(pcm_reader_t *reader);
+
 #endif

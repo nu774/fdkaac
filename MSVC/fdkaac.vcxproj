@@ -98,6 +98,8 @@ copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\ </Command>
     <ClCompile Include="..\src\aacenc.c" />
     <ClCompile Include="..\src\caf_reader.c" />
     <ClCompile Include="..\src\compat_win32.c" />
+    <ClCompile Include="..\src\extrapolater.c" />
+    <ClCompile Include="..\src\lpc.c" />
     <ClCompile Include="..\src\lpcm.c" />
     <ClCompile Include="..\src\m4af.c" />
     <ClCompile Include="..\src\main.c" />
@@ -114,6 +116,7 @@ copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\ </Command>
     <ClInclude Include="..\src\caf_reader.h" />
     <ClInclude Include="..\src\catypes.h" />
     <ClInclude Include="..\src\compat.h" />
+    <ClInclude Include="..\src\lpc.h" />
     <ClInclude Include="..\src\lpcm.h" />
     <ClInclude Include="..\src\m4af.h" />
     <ClInclude Include="..\src\m4af_endian.h" />

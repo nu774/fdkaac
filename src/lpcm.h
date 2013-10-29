@@ -31,6 +31,36 @@ typedef struct pcm_sample_description_t {
 #define PCM_BYTES_PER_CHANNEL(desc) \
     ((desc)->bytes_per_frame / (desc)->channels_per_frame)
 
+#if defined(_MSC_VER) && _MSC_VER < 1800
+#  ifdef _M_IX86
+static inline int lrint(double x)
+{
+    int n;
+    _asm {
+        fld x
+        fistp n
+    }
+    return n;
+}
+#  else
+#    include <emmintrin.h>
+static inline int lrint(double x)
+{
+    return _mm_cvtsd_si32(_mm_load_sd(&x));
+}
+#  endif
+#endif
+
+static
+inline double pcm_clip(double n, double min_value, double max_value)
+{
+    if (n < min_value)
+        return min_value;
+    else if (n > max_value)
+        return max_value;
+    return n;
+}
+
 int pcm_convert_to_native_sint16(const pcm_sample_description_t *format,
                                  const void *input, uint32_t nframes,
                                  int16_t *result);

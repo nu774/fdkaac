@@ -489,51 +489,82 @@ int write_sample(FILE *ofp, m4af_ctx_t *m4af,
 }
 
 static
-int encode(pcm_reader_t *reader, HANDLE_AACENCODER encoder,
-           uint32_t frame_length, FILE *ofp, m4af_ctx_t *m4af,
-           int show_progress)
+int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
+           HANDLE_AACENCODER encoder, uint32_t frame_length, 
+           m4af_ctx_t *m4af)
 {
-    int16_t *ibuf = 0;
-    uint8_t *obuf = 0;
-    uint32_t olen;
-    uint32_t osize = 0;
+    struct buffer_t {
+        uint8_t *data;
+        uint32_t len, size;
+    };
+    int16_t *ibuf = 0, *ip;
+    struct buffer_t obuf[2] = {{ 0 }}, *obp;
+    unsigned flip = 0;
     int nread = 1;
-    int consumed;
     int rc = -1;
-    int frames_written = 0;
+    int remaining, consumed;
+    int frames_written = 0, encoded = 0;
     aacenc_progress_t progress = { 0 };
     const pcm_sample_description_t *fmt = pcm_get_format(reader);
 
     ibuf = malloc(frame_length * fmt->bytes_per_frame);
     aacenc_progress_init(&progress, pcm_get_length(reader), fmt->sample_rate);
-    do {
+
+    for (;;) {
+        /*
+         * Since we delay the write, we cannot just exit loop when interrupted.
+         * Instead, we regard it as EOF.
+         */
         if (g_interrupted)
             nread = 0;
-        else if (nread) {
+        if (nread > 0) {
             if ((nread = pcm_read_frames(reader, ibuf, frame_length)) < 0) {
                 fprintf(stderr, "ERROR: read failed\n");
                 goto END;
             }
-            if (show_progress)
+            if (!params->silent)
                 aacenc_progress_update(&progress, pcm_get_position(reader),
                                        fmt->sample_rate * 2);
         }
-        if ((consumed = aac_encode_frame(encoder, fmt, ibuf, nread,
-                                         &obuf, &olen, &osize)) < 0)
-            goto END;
-        if (olen > 0) {
-            if (write_sample(ofp, m4af, obuf, olen, frame_length) < 0)
+        ip = ibuf;
+        remaining = nread;
+        do {
+            obp = &obuf[flip];
+            consumed = aac_encode_frame(encoder, fmt, ip, remaining,
+                                        &obp->data, &obp->len, &obp->size);
+            if (consumed < 0) goto END;
+            if (consumed == 0 && obp->len == 0) goto DONE;
+            if (obp->len == 0) break;
+
+            remaining -= consumed;
+            ip += consumed * fmt->channels_per_frame;
+            flip ^= 1;
+            /*
+             * As we pad 1 frame at beginning and ending by our extrapolator,
+             * we want to drop them.
+             * We delay output by 1 frame by double buffering, and discard
+             * second frame and final frame from the encoder.
+             * Since sbr_header is included in the first frame (in case of
+             * SBR), we cannot discard first frame. So we pick second instead.
+             */
+            ++encoded;
+            if (encoded == 1 || encoded == 3)
+                continue;
+            obp = &obuf[flip];
+            if (write_sample(params->output_fp, m4af, obp->data, obp->len,
+                             frame_length) < 0)
                 goto END;
             ++frames_written;
-        }
-    } while (nread > 0 || olen > 0);
-
-    if (show_progress)
+        } while (remaining > 0);
+    }
+DONE:
+    if (!params->silent)
         aacenc_progress_finish(&progress, pcm_get_position(reader));
     rc = frames_written;
 END:
     if (ibuf) free(ibuf);
-    if (obuf) free(obuf);
+    if (obuf[0].data) free(obuf[0].data);
+    if (obuf[1].data) free(obuf[1].data);
     return rc;
 }
 
@@ -709,10 +740,13 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
             }
             break;
         default:
+            fprintf(stderr, "ERROR: unsupported input file\n");
             goto END;
         }
     }
-    return pcm_open_sint16_converter(reader);
+    if ((reader = pcm_open_sint16_converter(reader)) != 0)
+        reader = extrapolater_open(reader);
+    return reader;
 END:
     return 0;
 }
@@ -794,8 +828,7 @@ int main(int argc, char **argv)
         m4af_set_priming_mode(m4af, params.gapless_mode + 1);
         m4af_begin_write(m4af);
     }
-    frame_count = encode(reader, encoder, aacinfo.frameLength,
-                         params.output_fp, m4af, !params.silent);
+    frame_count = encode(&params, reader, encoder, aacinfo.frameLength, m4af);
     if (frame_count < 0)
         goto END;
     if (m4af) {
