@@ -85,7 +85,7 @@ uint32_t bitcount(uint32_t bits)
 int pcm_read(pcm_io_context_t *io, void *buffer, uint32_t size);
 int pcm_skip(pcm_io_context_t *io, int64_t count);
 
-static int pcm_seek(pcm_io_context_t *io, int64_t off, int whence)
+static inline int pcm_seek(pcm_io_context_t *io, int64_t off, int whence)
 {
     return io->vtbl->seek ? io->vtbl->seek(io->cookie, off, whence) : -1;
 }
