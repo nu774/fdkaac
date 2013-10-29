@@ -864,7 +864,6 @@ void m4af_write_sbgp_box(m4af_ctx_t *ctx, uint32_t track_idx)
 static
 void m4af_write_sgpd_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
-    m4af_track_t *track = &ctx->track[track_idx];
     m4af_write(ctx,
                "\0\0\0\026"  /* size: 22           */
                "sgpd"        /* type               */
@@ -1050,7 +1049,6 @@ void m4af_write_elst_box(m4af_ctx_t *ctx, uint32_t track_idx)
 static
 void m4af_write_edts_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
-    m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0edts", 8);
     m4af_write_elst_box(ctx, track_idx);
