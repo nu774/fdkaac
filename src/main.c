@@ -607,7 +607,7 @@ char *generate_output_filename(const char *filename, const char *ext)
         const char *ext_org = strrchr(base, '.');
         if (ext_org) ilen = ext_org - base;
         p = malloc(ilen + ext_len + 1);
-        sprintf(p, "%.*s%s", ilen, base, ext);
+        sprintf(p, "%.*s%s", (int)ilen, base, ext);
     }
     return p;
 }
