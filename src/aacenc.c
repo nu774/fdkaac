@@ -187,7 +187,7 @@ FAIL:
 int aac_encode_frame(HANDLE_AACENCODER encoder,
                      const pcm_sample_description_t *format,
                      const int16_t *input, unsigned iframes,
-                     aacenc_result_t *output)
+                     aacenc_frame_t *output)
 {
     uint32_t ilen = iframes * format->channels_per_frame;
     AACENC_BufDesc ibdesc = { 0 }, obdesc = { 0 };
@@ -206,10 +206,10 @@ int aac_encode_frame(HANDLE_AACENCODER encoder,
 
     channel_mode = aacEncoder_GetParam(encoder, AACENC_CHANNELMODE);
     obytes = 6144 / 8 * channel_mode;
-    if (!output->data || output->size < obytes) {
+    if (!output->data || output->capacity < obytes) {
         uint8_t *p = realloc(output->data, obytes);
         if (!p) return -1;
-        output->size = obytes;
+        output->capacity = obytes;
         output->data = p;
     }
     obufs[0] = output->data;
@@ -232,6 +232,6 @@ int aac_encode_frame(HANDLE_AACENCODER encoder,
         fprintf(stderr, "ERROR: aacEncEncode() failed\n");
         return -1;
     }
-    output->len = oargs.numOutBytes;
+    output->size = oargs.numOutBytes;
     return oargs.numInSamples / format->channels_per_frame;
 }

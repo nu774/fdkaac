@@ -472,16 +472,15 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
 };
 
 static
-int write_sample(FILE *ofp, m4af_ctx_t *m4af,
-                 const void *data, uint32_t size, uint32_t duration)
+int write_sample(FILE *ofp, m4af_ctx_t *m4af, aacenc_frame_t *frame)
 {
     if (!m4af) {
-        fwrite(data, 1, size, ofp);
+        fwrite(frame->data, 1, frame->size, ofp);
         if (ferror(ofp)) {
             fprintf(stderr, "ERROR: fwrite(): %s\n", strerror(errno));
             return -1;
         }
-    } else if (m4af_write_sample(m4af, 0, data, size, duration) < 0) {
+    } else if (m4af_write_sample(m4af, 0, frame->data, frame->size, 0) < 0) {
         fprintf(stderr, "ERROR: failed to write m4a sample\n");
         return -1;
     }
@@ -494,7 +493,7 @@ int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
            m4af_ctx_t *m4af)
 {
     int16_t *ibuf = 0, *ip;
-    aacenc_result_t obuf[2] = {{ 0 }}, *obp;
+    aacenc_frame_t obuf[2] = {{ 0 }}, *obp;
     unsigned flip = 0;
     int nread = 1;
     int rc = -1;
@@ -528,8 +527,8 @@ int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
             obp = &obuf[flip];
             consumed = aac_encode_frame(encoder, fmt, ip, remaining, obp);
             if (consumed < 0) goto END;
-            if (consumed == 0 && obp->len == 0) goto DONE;
-            if (obp->len == 0) break;
+            if (consumed == 0 && obp->size == 0) goto DONE;
+            if (obp->size == 0) break;
 
             remaining -= consumed;
             ip += consumed * fmt->channels_per_frame;
@@ -546,8 +545,7 @@ int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
             if (encoded == 1 || encoded == 3)
                 continue;
             obp = &obuf[flip];
-            if (write_sample(params->output_fp, m4af, obp->data, obp->len,
-                             frame_length) < 0)
+            if (write_sample(params->output_fp, m4af, obp) < 0)
                 goto END;
             ++frames_written;
         } while (remaining > 0);
@@ -829,9 +827,9 @@ int main(int argc, char **argv)
          * we push one zero frame to the encoder here, to make delay even
          */
         int16_t zero[8] = { 0 };
-        aacenc_result_t obuf = { 0 };
-        aac_encode_frame(encoder, sample_format, zero, 1, &obuf);
-        free(obuf.data);
+        aacenc_frame_t frame = { 0 };
+        aac_encode_frame(encoder, sample_format, zero, 1, &frame);
+        free(frame.data);
     }
     frame_count = encode(&params, reader, encoder, aacinfo.frameLength, m4af);
     if (frame_count < 0)
