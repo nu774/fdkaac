@@ -93,7 +93,6 @@ int riff_ds64(wav_reader_t *reader, int64_t *length)
     TRY_IO(pcm_scanl(&reader->io, "QQQL",
                      &riff_size, length, &sample_count, &table_size) != 4);
     TRY_IO(pcm_skip(&reader->io, (chunk_size - 27) & ~1));
-    reader->data_offset += (chunk_size + 9) & ~1;
 FAIL:
     return -1;
 }
@@ -163,7 +162,6 @@ int wav_parse(wav_reader_t *reader, int64_t *data_length)
            container == RIFF_FOURCC('R','F','6','4'));
     TRY_IO(pcm_read32le(&reader->io, &fcc));
     ENSURE(fcc == RIFF_FOURCC('W','A','V','E'));
-    reader->data_offset = 12;
 
     if (container == RIFF_FOURCC('R','F','6','4'))
         riff_ds64(reader, data_length);
@@ -174,12 +172,11 @@ int wav_parse(wav_reader_t *reader, int64_t *data_length)
         } else if (fcc == RIFF_FOURCC('d','a','t','a')) {
             if (container == RIFF_FOURCC('R','I','F','F'))
                 *data_length = chunk_size;
-            reader->data_offset += 8;
+            reader->data_offset = pcm_tell(&reader->io);
             break;
         } else {
             TRY_IO(pcm_skip(&reader->io, (chunk_size + 1) & ~1));
         }
-        reader->data_offset += (chunk_size + 9) & ~1;
     }
     if (fcc == RIFF_FOURCC('d','a','t','a'))
         return 0;

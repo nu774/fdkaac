@@ -193,12 +193,10 @@ int caf_parse(caf_reader_t *reader, int64_t *data_length)
         } else if (fcc == M4AF_FOURCC('d','a','t','a')) {
             TRY_IO(pcm_skip(&reader->io, 4)); /* mEditCount */
             *data_length = (chunk_size == ~0ULL) ? chunk_size : chunk_size - 4;
-            reader->data_offset += 12;
+            reader->data_offset = pcm_tell(&reader->io);
             break;
         } else
             TRY_IO(pcm_skip(&reader->io, chunk_size));
-
-        reader->data_offset += (chunk_size + 8);
     }
     ENSURE(reader->sample_format.channels_per_frame);
     ENSURE(fcc == M4AF_FOURCC('d','a','t','a'));

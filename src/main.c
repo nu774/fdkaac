@@ -675,7 +675,7 @@ int parse_raw_spec(const char *spec, pcm_sample_description_t *desc)
 static pcm_io_vtbl_t pcm_io_vtbl = {
     read_callback, seek_callback, tell_callback
 };
-static pcm_io_vtbl_t pcm_io_vtbl_noseek = { read_callback, 0, 0 };
+static pcm_io_vtbl_t pcm_io_vtbl_noseek = { read_callback, 0, tell_callback };
 
 static
 pcm_reader_t *open_input(aacenc_param_ex_t *params)
