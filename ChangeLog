@@ -1,6 +1,54 @@
-2013-10-25  nu774 <honeycomb77@gmail.com>
+2013-10-30  nu774 <honeycomb77@gmail.com>
 
   * update ChangeLog [HEAD]
+
+  * bump version [v0.4.2]
+
+  * use tell() to obtain data chunk offset
+
+  * rename aacenc_result_t -> aacenc_frame_t, simplify write_sample()
+
+  * prepend 1 sample zero padding in case of SBR and enc_delay is odd
+
+  * cleanup interface of aac_encode_frame()
+
+  * add some copyright notice
+
+2013-10-29  nu774 <honeycomb77@gmail.com>
+
+  * smart padding for better gapless playback
+
+  * fix unused variable warning
+
+  * fix warning: cast size_t as sprintf() arg to int
+
+  * fix vcxproj
+
+  * fix pcm_seek() to inline
+
+2013-10-27  nu774 <honeycomb77@gmail.com>
+
+  * bump version [v0.4.1]
+
+  * add --include-sbr-delay
+
+  * fix help message: show -I as shorthand for --ignorelength
+
+  * remove --sbr-signaling
+
+2013-10-26  nu774 <honeycomb77@gmail.com>
+
+  * re-fix #ifdef cond for lrint()
+
+  * tag mapping: add recorded date and tempo, remove performer->artist
+
+2013-10-25  nu774 <honeycomb77@gmail.com>
+
+  * fix MSVC12 build issue
+
+  * fix build issue on platform where fileno is a naive macro
+
+  * update ChangeLog
 
   * bump version [v0.4.0]
 
