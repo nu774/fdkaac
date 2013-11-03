@@ -13,6 +13,17 @@
 #include <string.h>
 #include "aacenc.h"
 
+int aacenc_is_sbr_ratio_available()
+{
+#if AACENCODER_LIB_VL0 < 3 || (AACENCODER_LIB_VL0==3 && AACENCODER_LIB_VL1<4)
+    return 0;
+#else
+    LIB_INFO lib_info;
+    aacenc_get_lib_info(&lib_info);
+    return lib_info.version > 0x03040000;
+#endif
+}
+
 int aacenc_is_sbr_active(const aacenc_param_t *params)
 {
     switch (params->profile) {
@@ -24,6 +35,33 @@ int aacenc_is_sbr_active(const aacenc_param_t *params)
     if (params->profile == AOT_ER_AAC_ELD && params->lowdelay_sbr)
         return 1;
     return 0;
+}
+
+int aacenc_is_dual_rate_sbr(const aacenc_param_t *params)
+{
+    if (params->profile == AOT_PS || params->profile == AOT_MP2_PS)
+        return 1;
+    else if (params->profile == AOT_SBR || params->profile == AOT_MP2_SBR)
+        return params->sbr_ratio == 0 || params->sbr_ratio == 2;
+    else if (params->profile == AOT_ER_AAC_ELD && params->lowdelay_sbr)
+        return params->sbr_ratio == 2;
+    return 0;
+}
+
+void aacenc_get_lib_info(LIB_INFO *info)
+{
+    LIB_INFO *lib_info = 0;
+    lib_info = calloc(FDK_MODULE_LAST, sizeof(LIB_INFO));
+    if (aacEncGetLibInfo(lib_info) == AACENC_OK) {
+        int i;
+        for (i = 0; i < FDK_MODULE_LAST; ++i) {
+            if (lib_info[i].module_id == FDK_AACENC) {
+                memcpy(info, &lib_info[i], sizeof(LIB_INFO));
+                break;
+            }
+        }
+    }
+    free(lib_info);
 }
 
 static const unsigned aacenc_sampling_freq_tab[] = {
@@ -50,10 +88,13 @@ int aacenc_mp4asc(const aacenc_param_t *params,
                   uint8_t *outasc, uint32_t *outsize)
 {
     unsigned asc_sfreq = aacenc_sampling_freq_tab[(asc[0]&0x7)<<1 |asc[1]>>7];
+    unsigned shift = aacenc_is_dual_rate_sbr(params);
 
     switch (params->profile) {
     case AOT_SBR:
     case AOT_PS:
+        if (!shift)
+            break;
         if (*outsize < ascsize + 3)
             return -1;
         memcpy(outasc, asc, ascsize);
@@ -65,10 +106,10 @@ int aacenc_mp4asc(const aacenc_param_t *params,
         /* sbrPresentFlag:1 (value:1) */
         outasc[ascsize+2] = 0x80;
         /* extensionSamplingFrequencyIndex:4 */
-        outasc[ascsize+2] |= sampling_freq_index(asc_sfreq << 1) << 3;
+        outasc[ascsize+2] |= sampling_freq_index(asc_sfreq << shift) << 3;
         if (params->profile == AOT_SBR) {
             *outsize = ascsize + 3;
-            break;
+            return 0;
         }
         if (*outsize < ascsize + 5)
             return -1;
@@ -78,13 +119,12 @@ int aacenc_mp4asc(const aacenc_param_t *params,
         /* psPresentFlag:1 (value:1) */
         outasc[ascsize+4] = 0x80;
         *outsize = ascsize + 5;
-        break;
-    default:
-        if (*outsize < ascsize)
-            return -1;
-        memcpy(outasc, asc, ascsize);
-        *outsize = ascsize;
+        return 0;
     }
+    if (*outsize < ascsize)
+        return -1;
+    memcpy(outasc, asc, ascsize);
+    *outsize = ascsize;
     return 0;
 }
 
@@ -122,8 +162,11 @@ int aacenc_init(HANDLE_AACENCODER *encoder, const aacenc_param_t *params,
 {
     int channel_mode;
     int aot;
+    LIB_INFO lib_info;
 
     *encoder = 0;
+    aacenc_get_lib_info(&lib_info);
+
     if ((channel_mode = aacenc_channel_mode(format)) == 0) {
         fprintf(stderr, "ERROR: unsupported channel layout\n");
         goto FAIL;
@@ -149,13 +192,21 @@ int aacenc_init(HANDLE_AACENCODER *encoder, const aacenc_param_t *params,
         fprintf(stderr, "ERROR: unsupported sample rate\n");
         goto FAIL;
     }
-    aacEncoder_SetParam(*encoder, AACENC_CHANNELMODE, channel_mode);
+    if (aacEncoder_SetParam(*encoder, AACENC_CHANNELMODE,
+                            channel_mode) != AACENC_OK) {
+        fprintf(stderr, "ERROR: unsupported channel mode\n");
+        goto FAIL;
+    }
     aacEncoder_SetParam(*encoder, AACENC_BANDWIDTH, params->bandwidth);
     aacEncoder_SetParam(*encoder, AACENC_CHANNELORDER, 1);
     aacEncoder_SetParam(*encoder, AACENC_AFTERBURNER, !!params->afterburner);
 
-    if (aot == AOT_ER_AAC_ELD && params->lowdelay_sbr)
-        aacEncoder_SetParam(*encoder, AACENC_SBR_MODE, 1);
+    aacEncoder_SetParam(*encoder, AACENC_SBR_MODE, params->lowdelay_sbr);
+
+#if AACENCODER_LIB_VL0 > 3 || (AACENCODER_LIB_VL0==3 && AACENCODER_LIB_VL1>=4)
+    if (lib_info.version > 0x03040000)
+        aacEncoder_SetParam(*encoder, AACENC_SBR_RATIO, params->sbr_ratio);
+#endif
 
     if (aacEncoder_SetParam(*encoder, AACENC_TRANSMUX,
                             params->transport_format) != AACENC_OK) {

@@ -132,7 +132,14 @@ PROGNAME " %s\n"
 " -a, --afterburner <n>         Afterburner\n"
 "                                 0: Off\n"
 "                                 1: On(default)\n"
-" -L, --lowdelay-sbr            Enable ELD-SBR (AAC ELD only)\n"
+" -L, --lowdelay-sbr <-1|0|1>   Configure SBR activity on AAC ELD\n"
+"                                -1: Use ELD SBR auto configurator\n"
+"                                 0: Disable SBR on ELD (default)\n"
+"                                 1: Enable SBR on ELD\n"
+" -s, --sbr-ratio <0|1|2>       Controls activation of downsampled SBR\n"
+"                                 0: Use lib default (default)\n"
+"                                 1: downsampled SBR (default for ELD+SBR)\n"
+"                                 2: dual-rate SBR (default for HE-AAC)\n"
 " -f, --transport-format <n>    Transport format\n"
 "                                 0: RAW (default, muxed into M4A)\n"
 "                                 1: ADIF\n"
@@ -228,7 +235,7 @@ static
 int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
 {
     int ch;
-    unsigned n;
+    int n;
 
 #define OPT_INCLUDE_SBR_DELAY    M4AF_FOURCC('s','d','l','y')
 #define OPT_MOOV_BEFORE_MDAT     M4AF_FOURCC('m','o','o','v')
@@ -247,7 +254,8 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "bitrate-mode",     required_argument, 0, 'm' },
         { "bandwidth",        required_argument, 0, 'w' },
         { "afterburner",      required_argument, 0, 'a' },
-        { "lowdelay-sbr",     no_argument,       0, 'L' },
+        { "lowdelay-sbr",     required_argument, 0, 'L' },
+        { "sbr-ratio",        required_argument, 0, 's' },
         { "transport-format", required_argument, 0, 'f' },
         { "adts-crc-check",   no_argument,       0, 'C' },
         { "header-period",    required_argument, 0, 'P' },
@@ -325,7 +333,18 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
             params->afterburner = n;
             break;
         case 'L':
-            params->lowdelay_sbr = 1;
+            if (sscanf(optarg, "%d", &n) != 1 || n < -1 || n > 1) {
+                fprintf(stderr, "invalid arg for lowdelay-sbr\n");
+                return -1;
+            }
+            params->lowdelay_sbr = n;
+            break;
+        case 's':
+            if (sscanf(optarg, "%u", &n) != 1 || n > 2) {
+                fprintf(stderr, "invalid arg for sbr-ratio\n");
+                return -1;
+            }
+            params->sbr_ratio = n;
             break;
         case 'f':
             if (sscanf(optarg, "%u", &n) != 1) {
@@ -567,19 +586,11 @@ void put_tool_tag(m4af_ctx_t *m4af, const aacenc_param_ex_t *params,
 {
     char tool_info[256];
     char *p = tool_info;
-    LIB_INFO *lib_info = 0;
+    LIB_INFO lib_info;
 
     p += sprintf(p, PROGNAME " %s, ", fdkaac_version);
-
-    lib_info = calloc(FDK_MODULE_LAST, sizeof(LIB_INFO));
-    if (aacEncGetLibInfo(lib_info) == AACENC_OK) {
-        int i;
-        for (i = 0; i < FDK_MODULE_LAST; ++i)
-            if (lib_info[i].module_id == FDK_AACENC)
-                break;
-        p += sprintf(p, "libfdk-aac %s, ", lib_info[i].versionStr);
-    }
-    free(lib_info);
+    aacenc_get_lib_info(&lib_info);
+    p += sprintf(p, "libfdk-aac %s, ", lib_info.versionStr);
     if (params->bitrate_mode)
         sprintf(p, "VBR mode %d", params->bitrate_mode);
     else
@@ -756,11 +767,13 @@ int main(int argc, char **argv)
     pcm_reader_t *reader = 0;
     HANDLE_AACENCODER encoder = 0;
     AACENC_InfoStruct aacinfo = { 0 };
+    LIB_INFO lib_info = { 0 };
     m4af_ctx_t *m4af = 0;
     const pcm_sample_description_t *sample_format;
     int downsampled_timescale = 0;
     int frame_count = 0;
     int sbr_mode = 0;
+    unsigned scale_shift = 0;
 
     setlocale(LC_CTYPE, "");
     setbuf(stderr, 0);
@@ -782,7 +795,16 @@ int main(int argc, char **argv)
      * way in MPEG4 part3 spec, and seems the only way supported by iTunes.
      * Since FDK library does not support it, we have to do it on our side.
      */
+    sbr_mode = aacenc_is_sbr_active((aacenc_param_t*)&params);
+    if (sbr_mode && !aacenc_is_sbr_ratio_available()) {
+        fprintf(stderr, "WARNING: Only dual-rate SBR is available "
+                        "for this version\n");
+        params.sbr_ratio = 2;
+    }
+    scale_shift = aacenc_is_dual_rate_sbr((aacenc_param_t*)&params);
     params.sbr_signaling = (params.transport_format == TT_MP4_LOAS) ? 2 : 0;
+    if (sbr_mode && !scale_shift)
+        params.sbr_signaling = 2;
 
     if (aacenc_init(&encoder, (aacenc_param_t*)&params, sample_format,
                     &aacinfo) < 0)
@@ -800,15 +822,13 @@ int main(int argc, char **argv)
         goto END;
     }
     handle_signals();
-    sbr_mode = aacenc_is_sbr_active((aacenc_param_t*)&params);
+
     if (!params.transport_format) {
         uint32_t scale;
         uint8_t mp4asc[32];
         uint32_t ascsize = sizeof(mp4asc);
         unsigned framelen = aacinfo.frameLength;
-        if (sbr_mode)
-            downsampled_timescale = 1;
-        scale = sample_format->sample_rate >> downsampled_timescale;
+        scale = sample_format->sample_rate >> scale_shift;
         if ((m4af = m4af_create(M4AF_CODEC_MP4A, scale, &m4af_io,
                                 params.output_fp)) < 0)
             goto END;
@@ -816,12 +836,12 @@ int main(int argc, char **argv)
                       aacinfo.confSize, mp4asc, &ascsize);
         m4af_set_decoder_specific_info(m4af, 0, mp4asc, ascsize);
         m4af_set_fixed_frame_duration(m4af, 0,
-                                      framelen >> downsampled_timescale);
+                                      framelen >> scale_shift);
         m4af_set_vbr_mode(m4af, 0, params.bitrate_mode);
         m4af_set_priming_mode(m4af, params.gapless_mode + 1);
         m4af_begin_write(m4af);
     }
-    if (sbr_mode && (aacinfo.encoderDelay & 1)) {
+    if (scale_shift && (aacinfo.encoderDelay & 1)) {
         /*
          * Since odd delay cannot be exactly expressed in downsampled scale,
          * we push one zero frame to the encoder here, to make delay even
@@ -841,12 +861,11 @@ int main(int argc, char **argv)
 
         if (sbr_mode && params.profile != AOT_ER_AAC_ELD &&
             !params.include_sbr_delay)
-            delay -= 481 << 1;
-        if (sbr_mode && (delay & 1))
+            delay -= 481 << scale_shift;
+        if (scale_shift && (delay & 1))
             ++delay;
         padding = frame_count * aacinfo.frameLength - frames_read - delay;
-        m4af_set_priming(m4af, 0, delay >> downsampled_timescale,
-                         padding >> downsampled_timescale);
+        m4af_set_priming(m4af, 0, delay >> scale_shift, padding >> scale_shift);
         if (finalize_m4a(m4af, &params, encoder) < 0)
             goto END;
     }
