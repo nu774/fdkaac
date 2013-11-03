@@ -93,10 +93,10 @@ int aacenc_channel_mode(const pcm_sample_description_t *format)
 {
     uint32_t chanmask = format->channel_mask;
 
-    if (format->channels_per_frame > 6)
+    if (format->channels_per_frame > 8)
         return 0;
     if (!chanmask) {
-        static uint32_t defaults[] = { 0x4, 0x3, 0x7, 0, 0x37, 0x3f };
+        static uint32_t defaults[] = { 0x4, 0x3, 0x7, 0, 0x37, 0x3f, 0, 0x63f };
         chanmask = defaults[format->channels_per_frame - 1];
     }
     switch (chanmask) {
@@ -108,6 +108,10 @@ int aacenc_channel_mode(const pcm_sample_description_t *format)
     case 0x107: return MODE_1_2_1;
     case 0x607: return MODE_1_2_2;
     case 0x60f: return MODE_1_2_2_1;
+#if AACENCODER_LIB_VL0 > 3 || (AACENCODER_LIB_VL0==3 && AACENCODER_LIB_VL1>=4)
+    case 0xff:  return MODE_1_2_2_2_1;
+    case 0x63f: return MODE_7_1_REAR_SURROUND;
+#endif
     }
     return 0;
 }
