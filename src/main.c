@@ -54,7 +54,8 @@ static void handle_signals(void)
 {
     int i, sigs[] = { SIGINT, SIGHUP, SIGTERM };
     for (i = 0; i < sizeof(sigs)/sizeof(sigs[0]); ++i) {
-        struct sigaction sa = { 0 };
+        struct sigaction sa;
+        memset(&sa, 0, sizeof sa);
         sa.sa_handler = signal_handler;
         sa.sa_flags |= SA_RESTART;
         sigaction(sigs[i], &sa, 0);
@@ -767,10 +768,8 @@ int main(int argc, char **argv)
     pcm_reader_t *reader = 0;
     HANDLE_AACENCODER encoder = 0;
     AACENC_InfoStruct aacinfo = { 0 };
-    LIB_INFO lib_info = { 0 };
     m4af_ctx_t *m4af = 0;
     const pcm_sample_description_t *sample_format;
-    int downsampled_timescale = 0;
     int frame_count = 0;
     int sbr_mode = 0;
     unsigned scale_shift = 0;
