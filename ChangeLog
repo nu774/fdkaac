@@ -1,6 +1,16 @@
-2013-10-30  nu774 <honeycomb77@gmail.com>
+2013-11-03  nu774 <honeycomb77@gmail.com>
 
   * update ChangeLog [HEAD]
+
+  * bump version [v0.5.0]
+
+  * add --sbr-ratio to support AACENC_SBR_RATIO appeared on libFDK 3.4.12
+
+  * support 7.1 channel mode added on FDK 3.4.12
+
+2013-10-30  nu774 <honeycomb77@gmail.com>
+
+  * update ChangeLog [origin/master]
 
   * bump version [v0.4.2]
 
