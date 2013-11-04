@@ -1,343 +1,497 @@
-.TH fdkaac 1 "November 2013"
-.\"
-.\"
+.TH FDKAAC 1 "November, 2013" 
 .SH NAME
-fdkaac \- command line frontend for libfdk-aac encoder
-.\"
-.\"
+.PP
+fdkaac - command line frontend for libfdk-aac encoder \ 
 .SH SYNOPSIS
-.B fdkaac
-[-h|--help] [-p|--profile <n>] [-b|--bitrate <n>] [-m|--bitrate-mode <n>]
-[-w|--bandwith <n>] [-a|afterburner <n>] [-L|--lowdelay-sbr <n> ]
-[-s|--sbr-ratio <n>] [-f|--transport-format <n>] [-C|--adts-crc-check]
-[-h|--header-period <n>] [-G|--gapless-mode <n>] [--include-sbr-delay]
-[-I|--ignore-length] [-S|--silent] [--mov-before-mdat]
-[-R|--raw] [--raw-channels <n>] [--raw-rate <n>] [--raw-format <spec>]
-[--title <str>] [--artist <str>] [--album <str>] [--genre <str>] [--date <str>]
-[--composer <str>] [--grouping <str>] [--comment <str>] [--album-artist <str>]
-[--track <num[/total]>] [--disk <num[/total]>] [--tempo <n>]
-[--tag <fcc>:<value>] [--tag-from-file <fcc>:<value>]
-[--long-tag <name>:<value>] [--tag-from-json <filename[?dot_notation]>]
-[-o FILE] [FILE]
-.\"
-.\"
+.PP
+\f[B]fdkaac\f[] [OPTIONS] [FILE]
 .SH DESCRIPTION
-.B fdkaac
-reads linear PCM audio in either WAV, raw PCM, or CAF format,
-and encodes it into either M4A / AAC file.
-.br
+.PP
+\f[B]fdkaac\f[] reads linear PCM audio in either WAV, raw PCM, or CAF
+format, and encodes it into either M4A / AAC file.
+.PP
 If the input file is "-", data is read from stdin.
 Likewise, if the output file is "-", data is written to stdout if one of
-streamable AAC transport formats is selected by
-.B -f.
-.br
+streamable AAC transport formats is selected by \f[B]-f\f[].
+.PP
 When CAF input and M4A output is used, tags in CAF file are copied into
 the resulting M4A.
-.\"
-.\"
+\ 
 .SH OPTIONS
-.\"
-.IP "-h, --help"
+.TP
+.B -h, --help
 Show command help
-.\"
-.IP "-o <FILE>"
+.RS
+.RE
+.TP
+.B -o <FILE>
 Output filename.
-.\"
-.IP "-p, --profile <n>"
+.RS
+.RE
+.TP
+.B -p, --profile <n>
 Target profile (MPEG4 audio object type, AOT)
 .RS
-.IP 2
+.TP
+.B 2
 MPEG-4 AAC LC (default)
-.IP 5
+.RS
+.RE
+.TP
+.B 5
 MPEG-4 HE-AAC (SBR)
-.IP 29
+.RS
+.RE
+.TP
+.B 29
 MPEG-4 HE-AAC v2 (SBR+PS)
-.IP 23
+.RS
+.RE
+.TP
+.B 23
 MPEG-4 AAC LD
-.IP 39
+.RS
+.RE
+.TP
+.B 39
 MPEG-4 AAC ELD
-.IP 129
+.RS
+.RE
+.TP
+.B 129
 MPEG-2 AAC LC
-.IP 132
+.RS
+.RE
+.TP
+.B 132
 MPEG-2 HE-AAC (SBR)
-.IP 156
+.RS
+.RE
+.TP
+.B 156
 MPEG-2 HE-AAC v2 (SBR+PS)
+.RS
 .RE
-.\"
-.IP "-b, --bitrate <n>"
+.RE
+.TP
+.B -b, --bitrate <n>
 Target bitrate (for CBR)
-.\"
-.IP "-m, --bitrate-mode <n>"
-Bitrate configuration mode. 
-Available VBR quality value depends on other parameters such as
-profile, sample rate, or number of channels.
 .RS
-.IP 0
+.RE
+.TP
+.B -m, --bitrate-mode <n>
+Bitrate configuration mode.
+Available VBR quality value depends on other parameters such as profile,
+sample rate, or number of channels.
+.RS
+.TP
+.B 0
 CBR (default)
-.IP 1-5
-VBR (higher value -> higher bitrate)
-.RE
-.\"
-.IP "-w, --bandwith <n>"
-Frequency bandwith (lowpass cut-off frequency) in Hz. Available on AAC LC only.
-.\"
-.IP "-a, --afterburner <n>"
-Configure afterburner mode. When enabled, quality is increased at the expense
-of additional computational workload.
 .RS
-.IP 0
-Off
-.IP 1
-On (default)
 .RE
-.\"
-.IP "-L, --lowdelay-sbr <n>"
+.TP
+.B 1-5
+VBR (higher value -> higher bitrate)
+.RS
+.RE
+.RE
+.TP
+.B -w, --bandwith <n>
+Frequency bandwith (lowpass cut-off frequency) in Hz.
+Available on AAC LC only.
+.RS
+.RE
+.TP
+.B -a, --afterburner <n>
+Configure afterburner mode.
+When enabled, quality is increased at the expense of additional
+computational workload.
+.RS
+.TP
+.B 0
+Off
+.RS
+.RE
+.TP
+.B 1
+On (default)
+.RS
+.RE
+.RE
+.TP
+.B -L, --lowdelay-sbr <n>
 Configure SBR activity on AAC ELD.
 .RS
-.IP -1
+.TP
+.B -1
 Use ELD SBR auto configuration
-.IP 0
+.RS
+.RE
+.TP
+.B 0
 Disable SBR on ELD (default)
-.IP 1
+.RS
+.RE
+.TP
+.B 1
 Enable SBR on ELD
-.RE
-.\"
-.IP "-s, --sbr-ratio <n>"
-Controls activation of downsampled SBR. 
 .RS
-.IP 0
+.RE
+.RE
+.TP
+.B -s, --sbr-ratio <n>
+Controls activation of downsampled SBR.
+.RS
+.TP
+.B 0
 Use lib default (default)
-.IP 1
-Use downsampled SBR (default for ELD+SBR)
-.IP 2
-Use dual-rate SBR (default for HE-AAC)
-.RE
 .RS
+.RE
+.TP
+.B 1
+Use downsampled SBR (default for ELD+SBR)
+.RS
+.RE
+.TP
+.B 2
+Use dual-rate SBR (default for HE-AAC)
+.RS
+.RE
 .PP
-Dual-rate SBR is what is normally used for HE-AAC, where AAC is encoded at half the sample rate of SBR, hence "dual rate".
-On the other hand, downsampled SBR uses same sample rate for both of AAC and SBR (single rate), therefore downsampled SBR typically consumes more bitrate.
+Dual-rate SBR is what is normally used for HE-AAC, where AAC is encoded
+at half the sample rate of SBR, hence "dual rate".
+On the other hand, downsampled SBR uses same sample rate for both of AAC
+and SBR (single rate), therefore downsampled SBR typically consumes more
+bitrate.
 .PP
-Downsampled SBR is newly introduced feature in FDK encoder library version 3.4.12.
-When libfdk-aac in the system doesn't support this, dual-rate SBR will be used.
-When available, dual-rate SBR is the default for HE-AAC and downsampled SBR is the default for ELD+SBR.
+Downsampled SBR is newly introduced feature in FDK encoder library
+version 3.4.12.
+When libfdk-aac in the system doesn\[aq]t support this, dual-rate SBR
+will be used.
+When available, dual-rate SBR is the default for HE-AAC and downsampled
+SBR is the default for ELD+SBR.
 .PP
 Note that downsampled HE-AAC is not so common as dual-rate one.
-When downsampled HE-AAC is selected,
-.B fdkaac
-is forced to choose explicit hierarchical SBR signaling, which (at least) iTunes doesn't accept.
+When downsampled HE-AAC is selected, \f[B]fdkaac\f[] is forced to choose
+explicit hierarchical SBR signaling, which (at least) iTunes doesn\[aq]t
+accept.
 .RE
-.\"
-.IP "-f, --transport-format <n>"
+.TP
+.B -f, --transport-format <n>
 Transport format.
-Tagging and gapless playback is only available on M4A. Streaming to stdout is
-only available on others.
+Tagging and gapless playback is only available on M4A.
+Streaming to stdout is only available on others.
 .RS
-.IP 0
+.TP
+.B 0
 M4A (default)
-.IP 1
-ADIF
-.IP 2
-ADTS
-.IP 6
-LATM MCP=1
-.IP 7
-LATM MCP=0
-.IP 10
-LOAS/LATM (LATM within LOAS)
+.RS
 .RE
-.\"
-.IP "-C, --adts-crc-check"
+.TP
+.B 1
+ADIF
+.RS
+.RE
+.TP
+.B 2
+ADTS
+.RS
+.RE
+.TP
+.B 6
+LATM MCP=1
+.RS
+.RE
+.TP
+.B 7
+LATM MCP=0
+.RS
+.RE
+.TP
+.B 10
+LOAS/LATM (LATM within LOAS)
+.RS
+.RE
+.RE
+.TP
+.B -C, --adts-crc-check
 Add CRC protection on ADTS header.
-.\"
-.IP "-h, --header-period <n>"
+.RS
+.RE
+.TP
+.B -h, --header-period <n>
 StreamMuxConfig/PCE repetition period in transport layer.
-.\"
-.IP "-G, --gapless-mode <n>"
-Method to declare amount of encoder delay (and padding) in M4A container.
+.RS
+.RE
+.TP
+.B -G, --gapless-mode <n>
+Method to declare amount of encoder delay (and padding) in M4A
+container.
 These values are mandatory for proper gapless playback on player side.
 .RS
-.IP 0
+.TP
+.B 0
 iTunSMPB (default)
-.IP 1
-ISO standard (edts and sgpd)
-.IP 2
-Both
+.RS
 .RE
-.\"
-.IP "--include-sbr-delay"
+.TP
+.B 1
+ISO standard (edts and sgpd)
+.RS
+.RE
+.TP
+.B 2
+Both
+.RS
+.RE
+.RE
+.TP
+.B --include-sbr-delay
 When specified, count SBR decoder delay in encoder delay.
-.br
+.RS
+.PP
 This is not iTunes compatible and will lead to gapless playback issue on
 LC only decoder, but this is the default behavior of FDK library.
-.br
+.PP
 Whether counting SBR decoder delay in encoder delay or not result in
-incompatibility in gapless playback. You should pick which one will work for
-your favorite player.
-.br
-However, it's better not to choose SBR at all if you want
-gapless playback. LC doesn't have such issues.
-.\"
-.IP "-I, --ignorelength"
+incompatibility in gapless playback.
+You should pick which one will work for your favorite player.
+.PP
+However, it\[aq]s better not to choose SBR at all if you want gapless
+playback.
+LC doesn\[aq]t have such issues.
+.RE
+.TP
+.B -I, --ignorelength
 Ignore length field of data chunk in input WAV file.
-.\"
-.IP "-S, --silent"
-Don't print progress messages.
-.\"
-.IP "--moov-before-mdat"
+.RS
+.RE
+.TP
+.B -S, --silent
+Don\[aq]t print progress messages.
+.RS
+.RE
+.TP
+.B --moov-before-mdat
 Place moov box before mdat box in M4A container.
-.br
-This option might be important for some hardware players, that are known to
-refuse moov box placed after mdat box.
-.\"
-.IP "-R, --raw"
+This option might be important for some hardware players, that are known
+to refuse moov box placed after mdat box.
+.RS
+.RE
+.TP
+.B -R, --raw
 Regard input as raw PCM.
-.\"
-.IP "--raw-channels <n>"
+.RS
+.RE
+.TP
+.B --raw-channels <n>
 Specify number of channels of raw input (default: 2)
-.\"
-.IP "--raw-rate <n>"
+.RS
+.RE
+.TP
+.B --raw-rate <n>
 Specify sample rate of raw input (default: 44100)
-.\"
-.IP "--raw-format <spec>"
+.RS
+.RE
+.TP
+.B --raw-format <spec>
 Specify sample format of raw input (default: "S16L").
-.B Spec
-is as the following (case insensitive):
+\f[B]Spec\f[] is as the following (case insensitive):
 .RS
-.IP "1st char -- type of sample"
-.B S
-(igned) |
-.B U
-(nsigned) |
-.B F
-(loat)
-.IP "2nd part (in digits)"
+.TP
+.B 1st char -- type of sample
+\f[B]S\f[] (igned) | \f[B]U\f[] (nsigned) | \f[B]F\f[] (loat)
+.RS
+.RE
+.TP
+.B 2nd part (in digits)
 bits per channel
-.IP "Last char -- endianness (can be ommited)
-.B L
-(ittle, default) |
-.B B
-(ig)
+.RS
 .RE
-.\"
-.IP "--title <string>"
+.TP
+.B Last char -- endianness (can be ommited)
+\f[B]L\f[] (ittle, default) | \f[B]B\f[] (ig)
+.RS
+.RE
+.RE
+.TP
+.B --title <string>
 Set title tag.
-.\"
-.IP "--artist <string>"
+.RS
+.RE
+.TP
+.B --artist <string>
 Set artist tag.
-.\"
-.IP "--album <string>"
+.RS
+.RE
+.TP
+.B --album <string>
 Set album tag.
-.\"
-.IP "--genre <string>"
+.RS
+.RE
+.TP
+.B --genre <string>
 Set genre tag.
-.\"
-.IP "--date <string>"
+.RS
+.RE
+.TP
+.B --date <string>
 Set date tag.
-.\"
-.IP "--composer <string>"
+.RS
+.RE
+.TP
+.B --composer <string>
 Set composer tag.
-.\"
-.IP "--grouping <string>"
+.RS
+.RE
+.TP
+.B --grouping <string>
 Set grouping tag.
-.\"
-.IP "--comment <string>"
+.RS
+.RE
+.TP
+.B --comment <string>
 Set comment tag.
-.\"
-.IP "--album-artist <string>"
+.RS
+.RE
+.TP
+.B --album-artist <string>
 Set album artist tag.
-.\"
-.IP "--track <number[/total]>"
+.RS
+.RE
+.TP
+.B --track <number[/total]>
 Set track tag, with or without number of total tracks.
-.\"
-.IP "--disk <number[/total]>"
+.RS
+.RE
+.TP
+.B --disk <number[/total]>
 Set disk tag, with or without number of total discs.
-.\"
-.IP "--tempo <n>"
+.RS
+.RE
+.TP
+.B --tempo <n>
 Set tempo (BPM) tag.
-.\"
-.IP "--tag <fcc>:<value>"
+.RS
+.RE
+.TP
+.B --tag <fcc>:<value>
 Set iTunes predefined tag with explicit fourcc key and value.
-.br
 See
-.B
-https://code.google.com/p/mp4v2/wiki/iTunesMetadata
+https://code.google.com/p/mp4v2/wiki/iTunesMetadata (https://code.google.com/p/mp4v2/wiki/iTunesMetadata)
 for known predefined keys.
-.br
-You can omit first char of
-.B fcc
-when it is the copyright sign.
-.\"
-.IP "--tag-from-file <fcc>:<filename>"
+You can omit first char of \f[B]fcc\f[] when it is the copyright sign.
+.RS
+.RE
+.TP
+.B --tag-from-file <fcc>:<filename>
 Same as --tag, but set content of file as tag value.
-.\"
-.IP "--long-tag <name>:<value>"
-Set arbitrary tag as iTunes custom metadata. Stored in com.apple.iTunes field.
-.\"
-.IP "--tag-from-json <filename[?dot_notation]>"
-Read tags from JSON. By default, tags are assumed to be direct children of the
-root object in JSON. Optionary you can speficy arbitrary dot notation to locate
-the object containing tags.
-.\"
-.\"
+.RS
+.RE
+.TP
+.B --long-tag <name>:<value>
+Set arbitrary tag as iTunes custom metadata.
+Stored in com.apple.iTunes field.
+.RS
+.RE
+.TP
+.B --tag-from-json <filename[?dot_notation]>
+Read tags from JSON.
+By default, tags are assumed to be direct children of the root object in
+JSON.
+Optionary you can speficy arbitrary dot notation to locate the object
+containing tags.
+.RS
+.RE
+.PP
+\ 
 .SH EXAMPLES
-.\"
 .PP
-Encode WAV file into a M4A file. MPEG4 AAC LC, VBR quality 3.
-.RS
-fdkaac -m3 foo.wav
-.RE
-.\"
+Encode WAV file into a M4A file.
+MPEG4 AAC LC, VBR quality 3:
+.IP
+.nf
+\f[C]
+fdkaac\ -m3\ foo.wav
+\f[]
+.fi
 .PP
-Encode WAV file into a M4A file. MPEG4 HE-AAC, bitrate 64kbps.
-.RS
-fdkaac -p5 -b64 foo.wav
-.RE
-.\"
+Encode WAV file into a M4A file.
+MPEG4 HE-AAC, bitrate 64kbps:
+.IP
+.nf
+\f[C]
+fdkaac\ -p5\ -b64\ foo.wav
+\f[]
+.fi
 .PP
-Piping from
-.B ffmpeg
-(you need version supporting CAF output)
-.RS
-ffmpeg -i foo.flac -f caf - | fdkaac -b128 - -o foo.m4a
-.RE
-.\"
+Piping from \f[B]ffmpeg\f[] (you need version supporting CAF output):
+.IP
+.nf
+\f[C]
+ffmpeg\ -i\ foo.flac\ -f\ caf\ -\ |\ fdkaac\ -b128\ -\ -o\ foo.m4a
+\f[]
+.fi
 .PP
-Import tag using json generated by
-.B (ff|av)probe
-.RS
-ffprobe -v 0 -of json -show_format foo.flac >foo.json
-.br
-flac -dc foo.flac | fdkaac - -o foo.m4a -b128 --import-tag-from-json foo.json?format.tags
-.RE
-.\"
-.\"
+Import tags via json:
+.IP
+.nf
+\f[C]
+ffprobe\ -v\ 0\ -of\ json\ -show_format\ foo.flac\ >foo.json
+
+flac\ -dc\ foo.flac\ |\ \\
+fdkaac\ -\ -ox.m4a\ -m2\ --import-tag-from-json=foo.json?format.tags
+\f[]
+.fi
 .SH NOTES
-.\"
 .PP
 Upto 32bit integer or 64bit floating point format is supported as input.
-However, FDK library is implemented based on fixed point math and only supports 16bit integer PCM. Therefore, be careful of clipping. You might want to
-dither/noise shape beforehand when your input has higher resolution.
-.\"
+However, FDK library is implemented based on fixed point math and only
+supports 16bit integer PCM.
+Therefore, be careful of clipping.
+You might want to dither/noise shape beforehand when your input has
+higher resolution.
 .PP
 Following channel layouts are supported by the encoder.
-.RS
-.IP 1ch
+.TP
+.B 1ch
 C
-.IP 2ch
-L R
-.IP 3ch
-C L R
-.IP 4ch
-C L R Cs
-.IP 5ch
-C L R Ls Rs
-.IP 5.1ch
-C L R Ls Rs LFE
-.IP 7.1ch
-C Lc Rc L R Ls Rs LFE (7.1ch front)
-.br
-C L R Ls Rs Rls Rrs LFE (7.1ch rear)
+.RS
 .RE
-.\"
+.TP
+.B 2ch
+L R
+.RS
+.RE
+.TP
+.B 3ch
+C L R
+.RS
+.RE
+.TP
+.B 4ch
+C L R Cs
+.RS
+.RE
+.TP
+.B 5ch
+C L R Ls Rs
+.RS
+.RE
+.TP
+.B 5.1ch
+C L R Ls Rs LFE
+.RS
+.RE
+.TP
+.B 7.1ch (front)
+C Lc Rc L R Ls Rs LFE
+.RS
+.RE
+.TP
+.B 7.1ch (rear)
+C L R Ls Rs Rls Rrs LFE
+.RS
+.RE
 .SH AUTHORS
-nu774 <honeycomb77@gmail.com>
+nu774 <honeycomb77@gmail.com>.

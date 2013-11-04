@@ -1,0 +1,332 @@
+% FDKAAC(1)
+% nu774 <honeycomb77@gmail.com>
+% November, 2013
+
+NAME
+====
+
+fdkaac - command line frontend for libfdk-aac encoder  
+
+SYNOPSIS
+========
+
+**fdkaac** [OPTIONS] [FILE]
+
+DESCRIPTION
+===========
+
+**fdkaac** reads linear PCM audio in either WAV, raw PCM, or CAF format,
+and encodes it into either M4A / AAC file.
+
+If the input file is "-", data is read from stdin. Likewise, if the
+output file is "-", data is written to stdout if one of streamable AAC
+transport formats is selected by **-f**.
+
+When CAF input and M4A output is used, tags in CAF file are copied into
+the resulting M4A.  
+
+OPTIONS
+=======
+
+-h, --help
+:   Show command help
+
+-o \<FILE\>
+:   Output filename.
+
+-p, --profile \<n\>
+:   Target profile (MPEG4 audio object type, AOT)
+
+    2
+    :   MPEG-4 AAC LC (default)
+
+    5
+    :   MPEG-4 HE-AAC (SBR)
+
+    29
+    :   MPEG-4 HE-AAC v2 (SBR+PS)
+
+    23
+    :   MPEG-4 AAC LD
+
+    39
+    :   MPEG-4 AAC ELD
+
+    129
+    :   MPEG-2 AAC LC
+
+    132
+    :   MPEG-2 HE-AAC (SBR)
+
+    156
+    :   MPEG-2 HE-AAC v2 (SBR+PS)
+
+-b, --bitrate \<n\>
+:   Target bitrate (for CBR)
+
+-m, --bitrate-mode \<n\>
+:   Bitrate configuration mode. Available VBR quality value depends on
+    other parameters such as profile, sample rate, or number of
+    channels.
+
+    0
+    :   CBR (default)
+
+    1-5
+    :   VBR (higher value -\> higher bitrate)
+
+-w, --bandwith \<n\>
+:   Frequency bandwith (lowpass cut-off frequency) in Hz. Available on
+    AAC LC only.
+
+-a, --afterburner \<n\>
+:   Configure afterburner mode. When enabled, quality is increased at
+    the expense of additional computational workload.
+
+    0
+    :   Off
+
+    1
+    :   On (default)
+
+-L, --lowdelay-sbr \<n\>
+:   Configure SBR activity on AAC ELD.
+
+    -1
+    :   Use ELD SBR auto configuration
+
+    0
+    :   Disable SBR on ELD (default)
+
+    1
+    :   Enable SBR on ELD
+
+-s, --sbr-ratio \<n\>
+:   Controls activation of downsampled SBR.
+
+    0
+    :   Use lib default (default)
+
+    1
+    :   Use downsampled SBR (default for ELD+SBR)
+
+    2
+    :   Use dual-rate SBR (default for HE-AAC)
+
+    Dual-rate SBR is what is normally used for HE-AAC, where AAC is
+    encoded at half the sample rate of SBR, hence "dual rate". On the
+    other hand, downsampled SBR uses same sample rate for both of AAC
+    and SBR (single rate), therefore downsampled SBR typically consumes
+    more bitrate.
+
+    Downsampled SBR is newly introduced feature in FDK encoder library
+    version 3.4.12. When libfdk-aac in the system doesn't support this,
+    dual-rate SBR will be used. When available, dual-rate SBR is the
+    default for HE-AAC and downsampled SBR is the default for ELD+SBR.
+
+    Note that downsampled HE-AAC is not so common as dual-rate one. When
+    downsampled HE-AAC is selected, **fdkaac** is forced to choose
+    explicit hierarchical SBR signaling, which (at least) iTunes doesn't
+    accept.
+
+-f, --transport-format \<n\>
+:   Transport format. Tagging and gapless playback is only available on
+    M4A. Streaming to stdout is only available on others.
+
+    0
+    :   M4A (default)
+
+    1
+    :   ADIF
+
+    2
+    :   ADTS
+
+    6
+    :   LATM MCP=1
+
+    7
+    :   LATM MCP=0
+
+    10
+    :   LOAS/LATM (LATM within LOAS)
+
+-C, --adts-crc-check
+:   Add CRC protection on ADTS header.
+
+-h, --header-period \<n\>
+:   StreamMuxConfig/PCE repetition period in transport layer.
+
+-G, --gapless-mode \<n\>
+:   Method to declare amount of encoder delay (and padding) in M4A
+    container. These values are mandatory for proper gapless playback on
+    player side.
+
+    0
+    :   iTunSMPB (default)
+
+    1
+    :   ISO standard (edts and sgpd)
+
+    2
+    :   Both
+
+--include-sbr-delay
+:   When specified, count SBR decoder delay in encoder delay.
+
+    This is not iTunes compatible and will lead to gapless playback
+    issue on LC only decoder, but this is the default behavior of FDK
+    library.
+
+    Whether counting SBR decoder delay in encoder delay or not result in
+    incompatibility in gapless playback. You should pick which one will
+    work for your favorite player.
+
+    However, it's better not to choose SBR at all if you want gapless
+    playback. LC doesn't have such issues.
+
+-I, --ignorelength
+:   Ignore length field of data chunk in input WAV file.
+
+-S, --silent
+:   Don't print progress messages.
+
+--moov-before-mdat
+:   Place moov box before mdat box in M4A container. This option might
+    be important for some hardware players, that are known to refuse
+    moov box placed after mdat box.
+
+-R, --raw
+:   Regard input as raw PCM.
+
+--raw-channels \<n\>
+:   Specify number of channels of raw input (default: 2)
+
+--raw-rate \<n\>
+:   Specify sample rate of raw input (default: 44100)
+
+--raw-format \<spec\>
+:   Specify sample format of raw input (default: "S16L"). **Spec** is as
+    the following (case insensitive):
+
+    1st char -- type of sample
+    :   **S** (igned) | **U** (nsigned) | **F** (loat)
+
+    2nd part (in digits)
+    :   bits per channel
+
+    Last char -- endianness (can be ommited)
+    :   **L** (ittle, default) | **B** (ig)
+
+--title \<string\>
+:   Set title tag.
+
+--artist \<string\>
+:   Set artist tag.
+
+--album \<string\>
+:   Set album tag.
+
+--genre \<string\>
+:   Set genre tag.
+
+--date \<string\>
+:   Set date tag.
+
+--composer \<string\>
+:   Set composer tag.
+
+--grouping \<string\>
+:   Set grouping tag.
+
+--comment \<string\>
+:   Set comment tag.
+
+--album-artist \<string\>
+:   Set album artist tag.
+
+--track \<number[/total]\>
+:   Set track tag, with or without number of total tracks.
+
+--disk \<number[/total]\>
+:   Set disk tag, with or without number of total discs.
+
+--tempo \<n\>
+:   Set tempo (BPM) tag.
+
+--tag \<fcc\>:\<value\>
+:   Set iTunes predefined tag with explicit fourcc key and value. See
+    [https://code.google.com/p/mp4v2/wiki/iTunesMetadata](https://code.google.com/p/mp4v2/wiki/iTunesMetadata)
+    for known predefined keys. You can omit first char of **fcc** when
+    it is the copyright sign.
+
+--tag-from-file \<fcc\>:\<filename\>
+:   Same as --tag, but set content of file as tag value.
+
+--long-tag \<name\>:\<value\>
+:   Set arbitrary tag as iTunes custom metadata. Stored in
+    com.apple.iTunes field.
+
+--tag-from-json \<filename[?dot\_notation]\>
+:   Read tags from JSON. By default, tags are assumed to be direct
+    children of the root object in JSON. Optionary you can speficy
+    arbitrary dot notation to locate the object containing tags.
+ 
+
+EXAMPLES
+========
+
+Encode WAV file into a M4A file. MPEG4 AAC LC, VBR quality 3:
+
+    fdkaac -m3 foo.wav
+
+Encode WAV file into a M4A file. MPEG4 HE-AAC, bitrate 64kbps:
+
+    fdkaac -p5 -b64 foo.wav
+
+Piping from **ffmpeg** (you need version supporting CAF output):
+
+    ffmpeg -i foo.flac -f caf - | fdkaac -b128 - -o foo.m4a
+
+Import tags via json:
+
+    ffprobe -v 0 -of json -show_format foo.flac >foo.json
+
+    flac -dc foo.flac | \
+    fdkaac - -ox.m4a -m2 --import-tag-from-json=foo.json?format.tags
+
+NOTES
+=====
+
+Upto 32bit integer or 64bit floating point format is supported as input.
+However, FDK library is implemented based on fixed point math and only
+supports 16bit integer PCM. Therefore, be careful of clipping. You might
+want to dither/noise shape beforehand when your input has higher
+resolution.
+
+Following channel layouts are supported by the encoder.
+
+1ch
+:   C
+
+2ch
+:   L R
+
+3ch
+:   C L R
+
+4ch
+:   C L R Cs
+
+5ch
+:   C L R Ls Rs
+
+5.1ch
+:   C L R Ls Rs LFE
+
+7.1ch (front)
+:   C Lc Rc L R Ls Rs LFE
+
+7.1ch (rear)
+:   C L R Ls Rs Rls Rrs LFE
+
