@@ -18,6 +18,8 @@ fdkaac_SOURCES = \
     src/progress.c             \
     src/wav_reader.c
 
+dist_man_MANS = man/fdkaac.1
+
 fdkaac_LDADD = \
     @LIBICONV@ -lfdk-aac -lm
 
