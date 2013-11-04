@@ -39,6 +39,6 @@ with Popen(GITLOG_CMD, shell=False, stdout=PIPE).stdout as pipe:
     commits = parse_gitlog(pipe)
     commits_by_date_author = groupby(commits, key=lambda x: (x.date, x.author))
     for (date, author), commits in commits_by_date_author:
-        output('{0}  {1}\n\n'.format(date, author))
+        output(u'{0}  {1}\n\n'.format(date, author).encode('utf-8'))
         for c in commits:
-            output('  * {0}{1}\n\n'.format(c.subject, c.ref))
+            output(u'  * {0}{1}\n\n'.format(c.subject, c.ref).encode('utf-8'))
