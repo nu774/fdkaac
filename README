@@ -20,7 +20,7 @@ and encodes it into either M4A / AAC file.
 
 If the input file is "-", data is read from stdin. Likewise, if the
 output file is "-", data is written to stdout if one of streamable AAC
-transport formats is selected by **-f**.
+transport formats are selected by **-f**.
 
 When CAF input and M4A output is used, tags in CAF file are copied into
 the resulting M4A.  
@@ -155,7 +155,7 @@ OPTIONS
 :   Add CRC protection on ADTS header.
 
 -h, --header-period \<n\>
-:   StreamMuxConfig/PCE repetition period in transport layer.
+:   StreamMuxConfig/PCE repetition period in the transport layer.
 
 -G, --gapless-mode \<n\>
 :   Method to declare amount of encoder delay (and padding) in M4A
@@ -215,7 +215,7 @@ OPTIONS
     2nd part (in digits)
     :   bits per channel
 
-    Last char -- endianness (can be ommited)
+    Last char -- endianness (can be omitted)
     :   **L** (ittle, default) | **B** (ig)
 
 --title \<string\>
@@ -269,7 +269,7 @@ OPTIONS
 
 --tag-from-json \<filename[?dot\_notation]\>
 :   Read tags from JSON. By default, tags are assumed to be direct
-    children of the root object in JSON. Optionary you can speficy
+    children of the root object in JSON. Optionally you can specify
     arbitrary dot notation to locate the object containing tags.
  
 
@@ -300,7 +300,7 @@ NOTES
 
 Upto 32bit integer or 64bit floating point format is supported as input.
 However, FDK library is implemented based on fixed point math and only
-supports 16bit integer PCM. Therefore, be careful of clipping. You might
+supports 16bit integer PCM. Therefore, be wary of clipping. You might
 want to dither/noise shape beforehand when your input has higher
 resolution.
 
