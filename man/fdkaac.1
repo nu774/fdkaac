@@ -12,7 +12,7 @@ format, and encodes it into either M4A / AAC file.
 .PP
 If the input file is "-", data is read from stdin.
 Likewise, if the output file is "-", data is written to stdout if one of
-streamable AAC transport formats is selected by \f[B]-f\f[].
+streamable AAC transport formats are selected by \f[B]-f\f[].
 .PP
 When CAF input and M4A output is used, tags in CAF file are copied into
 the resulting M4A.
@@ -220,7 +220,7 @@ Add CRC protection on ADTS header.
 .RE
 .TP
 .B -h, --header-period <n>
-StreamMuxConfig/PCE repetition period in transport layer.
+StreamMuxConfig/PCE repetition period in the transport layer.
 .RS
 .RE
 .TP
@@ -309,7 +309,7 @@ bits per channel
 .RS
 .RE
 .TP
-.B Last char -- endianness (can be ommited)
+.B Last char -- endianness (can be omitted)
 \f[B]L\f[] (ittle, default) | \f[B]B\f[] (ig)
 .RS
 .RE
@@ -399,7 +399,7 @@ Stored in com.apple.iTunes field.
 Read tags from JSON.
 By default, tags are assumed to be direct children of the root object in
 JSON.
-Optionary you can speficy arbitrary dot notation to locate the object
+Optionally you can specify arbitrary dot notation to locate the object
 containing tags.
 .RS
 .RE
@@ -448,7 +448,7 @@ fdkaac\ -\ -ox.m4a\ -m2\ --import-tag-from-json=foo.json?format.tags
 Upto 32bit integer or 64bit floating point format is supported as input.
 However, FDK library is implemented based on fixed point math and only
 supports 16bit integer PCM.
-Therefore, be careful of clipping.
+Therefore, be wary of clipping.
 You might want to dither/noise shape beforehand when your input has
 higher resolution.
 .PP
