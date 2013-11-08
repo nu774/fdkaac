@@ -1,6 +1,22 @@
-2013-11-04  nu774 <honeycomb77@gmail.com>
+2013-11-08  nu774 <honeycomb77@gmail.com>
 
   * update ChangeLog [HEAD]
+
+  * bump version [v0.5.1]
+
+  * fix to use libFDKAAC signaling mode 1
+
+2013-11-05  nu774 <honeycomb77@gmail.com>
+
+  * fix README
+
+2013-11-04  nu774 <honeycomb77@gmail.com>
+
+  * rename README.md -> README
+
+  * Update README -> README.md, generate groff manpage from README.md
+
+  * update ChangeLog
 
   * update git2changelog to accept non-ascii output
 
@@ -8,7 +24,7 @@
 
 2013-11-03  nu774 <honeycomb77@gmail.com>
 
-  * fix gcc warnings [origin/master]
+  * fix gcc warnings
 
   * Merge pull request #7 from rbrito/misc-fixes
 
@@ -66,7 +82,7 @@
 
 2013-10-26  nu774 <honeycomb77@gmail.com>
 
-  * re-fix #ifdef cond for lrint()
+  * re-fix #ifdef cond for lrint() [old]
 
   * tag mapping: add recorded date and tempo, remove performer->artist
 
