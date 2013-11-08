@@ -785,15 +785,6 @@ int main(int argc, char **argv)
 
     sample_format = pcm_get_format(reader);
 
-    /*
-     * We use explicit/hierarchical signaling for LOAS.
-     * Other than that, we request implicit signaling to FDK library, then 
-     * append explicit/backward-compatible signaling to ASC in case of MP4FF.
-     *
-     * Explicit/backward-compatible signaling of SBR is the most recommended
-     * way in MPEG4 part3 spec, and seems the only way supported by iTunes.
-     * Since FDK library does not support it, we have to do it on our side.
-     */
     sbr_mode = aacenc_is_sbr_active((aacenc_param_t*)&params);
     if (sbr_mode && !aacenc_is_sbr_ratio_available()) {
         fprintf(stderr, "WARNING: Only dual-rate SBR is available "
@@ -801,7 +792,9 @@ int main(int argc, char **argv)
         params.sbr_ratio = 2;
     }
     scale_shift = aacenc_is_dual_rate_sbr((aacenc_param_t*)&params);
-    params.sbr_signaling = (params.transport_format == TT_MP4_LOAS) ? 2 : 0;
+    params.sbr_signaling =
+        (params.transport_format == TT_MP4_LOAS) ? 2 :
+        (params.transport_format == TT_MP4_RAW)  ? 1 : 0;
     if (sbr_mode && !scale_shift)
         params.sbr_signaling = 2;
 
@@ -824,16 +817,13 @@ int main(int argc, char **argv)
 
     if (!params.transport_format) {
         uint32_t scale;
-        uint8_t mp4asc[32];
-        uint32_t ascsize = sizeof(mp4asc);
         unsigned framelen = aacinfo.frameLength;
         scale = sample_format->sample_rate >> scale_shift;
         if ((m4af = m4af_create(M4AF_CODEC_MP4A, scale, &m4af_io,
                                 params.output_fp)) < 0)
             goto END;
-        aacenc_mp4asc((aacenc_param_t*)&params, aacinfo.confBuf,
-                      aacinfo.confSize, mp4asc, &ascsize);
-        m4af_set_decoder_specific_info(m4af, 0, mp4asc, ascsize);
+        m4af_set_decoder_specific_info(m4af, 0,
+                                       aacinfo.confBuf, aacinfo.confSize);
         m4af_set_fixed_frame_duration(m4af, 0,
                                       framelen >> scale_shift);
         m4af_set_vbr_mode(m4af, 0, params.bitrate_mode);
