@@ -75,8 +75,8 @@ OPTIONS
     1-5
     :   VBR (higher value -\> higher bitrate)
 
--w, --bandwith \<n\>
-:   Frequency bandwith (lowpass cut-off frequency) in Hz. Available on
+-w, --bandwidth \<n\>
+:   Frequency bandwidth (lowpass cut-off frequency) in Hz. Available on
     AAC LC only.
 
 -a, --afterburner \<n\>
