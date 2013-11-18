@@ -5,7 +5,7 @@
 NAME
 ====
 
-fdkaac - command line frontend for libfdk-aac encoder  
+fdkaac - command line frontend for libfdk-aac encoder
 
 SYNOPSIS
 ========
@@ -23,7 +23,7 @@ output file is "-", data is written to stdout if one of streamable AAC
 transport formats are selected by **-f**.
 
 When CAF input and M4A output is used, tags in CAF file are copied into
-the resulting M4A.  
+the resulting M4A.
 
 OPTIONS
 =======
@@ -75,8 +75,8 @@ OPTIONS
     1-5
     :   VBR (higher value -\> higher bitrate)
 
--w, --bandwith \<n\>
-:   Frequency bandwith (lowpass cut-off frequency) in Hz. Available on
+-w, --bandwidth \<n\>
+:   Frequency bandwidth (lowpass cut-off frequency) in Hz. Available on
     AAC LC only.
 
 -a, --afterburner \<n\>
@@ -271,7 +271,7 @@ OPTIONS
 :   Read tags from JSON. By default, tags are assumed to be direct
     children of the root object in JSON. Optionally you can specify
     arbitrary dot notation to locate the object containing tags.
- 
+
 
 EXAMPLES
 ========

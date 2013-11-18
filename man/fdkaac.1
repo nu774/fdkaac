@@ -1,85 +1,84 @@
 .TH FDKAAC 1 "November, 2013" 
 .SH NAME
 .PP
-fdkaac - command line frontend for libfdk-aac encoder \ 
+fdkaac \- command line frontend for libfdk\-aac encoder
 .SH SYNOPSIS
 .PP
-\f[B]fdkaac\f[] [OPTIONS] [FILE]
+\f[B]fdkaac\f[] [OPTIONS][FILE]
 .SH DESCRIPTION
 .PP
 \f[B]fdkaac\f[] reads linear PCM audio in either WAV, raw PCM, or CAF
 format, and encodes it into either M4A / AAC file.
 .PP
-If the input file is "-", data is read from stdin.
-Likewise, if the output file is "-", data is written to stdout if one of
-streamable AAC transport formats are selected by \f[B]-f\f[].
+If the input file is "\-", data is read from stdin.
+Likewise, if the output file is "\-", data is written to stdout if one
+of streamable AAC transport formats are selected by \f[B]\-f\f[].
 .PP
 When CAF input and M4A output is used, tags in CAF file are copied into
 the resulting M4A.
-\ 
 .SH OPTIONS
 .TP
-.B -h, --help
+.B \-h, \-\-help
 Show command help
 .RS
 .RE
 .TP
-.B -o <FILE>
+.B \-o <FILE>
 Output filename.
 .RS
 .RE
 .TP
-.B -p, --profile <n>
+.B \-p, \-\-profile <n>
 Target profile (MPEG4 audio object type, AOT)
 .RS
 .TP
 .B 2
-MPEG-4 AAC LC (default)
+MPEG\-4 AAC LC (default)
 .RS
 .RE
 .TP
 .B 5
-MPEG-4 HE-AAC (SBR)
+MPEG\-4 HE\-AAC (SBR)
 .RS
 .RE
 .TP
 .B 29
-MPEG-4 HE-AAC v2 (SBR+PS)
+MPEG\-4 HE\-AAC v2 (SBR+PS)
 .RS
 .RE
 .TP
 .B 23
-MPEG-4 AAC LD
+MPEG\-4 AAC LD
 .RS
 .RE
 .TP
 .B 39
-MPEG-4 AAC ELD
+MPEG\-4 AAC ELD
 .RS
 .RE
 .TP
 .B 129
-MPEG-2 AAC LC
+MPEG\-2 AAC LC
 .RS
 .RE
 .TP
 .B 132
-MPEG-2 HE-AAC (SBR)
+MPEG\-2 HE\-AAC (SBR)
 .RS
 .RE
 .TP
 .B 156
-MPEG-2 HE-AAC v2 (SBR+PS)
+MPEG\-2 HE\-AAC v2 (SBR+PS)
 .RS
 .RE
 .RE
 .TP
-.B -b, --bitrate <n>
+.B \-b, \-\-bitrate <n>
 Target bitrate (for CBR)
 .RS
 .RE
 .TP
-.B -m, --bitrate-mode <n>
+.B \-m, \-\-bitrate\-mode <n>
 Bitrate configuration mode.
 Available VBR quality value depends on other parameters such as profile,
 sample rate, or number of channels.
@@ -90,19 +89,19 @@ CBR (default)
 .RS
 .RE
 .TP
-.B 1-5
-VBR (higher value -> higher bitrate)
+.B 1\-5
+VBR (higher value \-> higher bitrate)
 .RS
 .RE
 .RE
 .TP
-.B -w, --bandwith <n>
-Frequency bandwith (lowpass cut-off frequency) in Hz.
+.B \-w, \-\-bandwidth <n>
+Frequency bandwidth (lowpass cut\-off frequency) in Hz.
 Available on AAC LC only.
 .RS
 .RE
 .TP
-.B -a, --afterburner <n>
+.B \-a, \-\-afterburner <n>
 Configure afterburner mode.
 When enabled, quality is increased at the expense of additional
 computational workload.
@@ -119,11 +118,11 @@ On (default)
 .RE
 .RE
 .TP
-.B -L, --lowdelay-sbr <n>
+.B \-L, \-\-lowdelay\-sbr <n>
 Configure SBR activity on AAC ELD.
 .RS
 .TP
-.B -1
+.B \-1
 Use ELD SBR auto configuration
 .RS
 .RE
@@ -139,7 +138,7 @@ Enable SBR on ELD
 .RE
 .RE
 .TP
-.B -s, --sbr-ratio <n>
+.B \-s, \-\-sbr\-ratio <n>
 Controls activation of downsampled SBR.
 .RS
 .TP
@@ -154,30 +153,30 @@ Use downsampled SBR (default for ELD+SBR)
 .RE
 .TP
 .B 2
-Use dual-rate SBR (default for HE-AAC)
+Use dual\-rate SBR (default for HE\-AAC)
 .RS
 .RE
 .PP
-Dual-rate SBR is what is normally used for HE-AAC, where AAC is encoded
-at half the sample rate of SBR, hence "dual rate".
+Dual\-rate SBR is what is normally used for HE\-AAC, where AAC is
+encoded at half the sample rate of SBR, hence "dual rate".
 On the other hand, downsampled SBR uses same sample rate for both of AAC
 and SBR (single rate), therefore downsampled SBR typically consumes more
 bitrate.
 .PP
 Downsampled SBR is newly introduced feature in FDK encoder library
 version 3.4.12.
-When libfdk-aac in the system doesn\[aq]t support this, dual-rate SBR
+When libfdk\-aac in the system doesn\[aq]t support this, dual\-rate SBR
 will be used.
-When available, dual-rate SBR is the default for HE-AAC and downsampled
-SBR is the default for ELD+SBR.
+When available, dual\-rate SBR is the default for HE\-AAC and
+downsampled SBR is the default for ELD+SBR.
 .PP
-Note that downsampled HE-AAC is not so common as dual-rate one.
-When downsampled HE-AAC is selected, \f[B]fdkaac\f[] is forced to choose
-explicit hierarchical SBR signaling, which (at least) iTunes doesn\[aq]t
-accept.
+Note that downsampled HE\-AAC is not so common as dual\-rate one.
+When downsampled HE\-AAC is selected, \f[B]fdkaac\f[] is forced to
+choose explicit hierarchical SBR signaling, which (at least) iTunes
+doesn\[aq]t accept.
 .RE
 .TP
-.B -f, --transport-format <n>
+.B \-f, \-\-transport\-format <n>
 Transport format.
 Tagging and gapless playback is only available on M4A.
 Streaming to stdout is only available on others.
@@ -214,17 +213,17 @@ LOAS/LATM (LATM within LOAS)
 .RE
 .RE
 .TP
-.B -C, --adts-crc-check
+.B \-C, \-\-adts\-crc\-check
 Add CRC protection on ADTS header.
 .RS
 .RE
 .TP
-.B -h, --header-period <n>
+.B \-h, \-\-header\-period <n>
 StreamMuxConfig/PCE repetition period in the transport layer.
 .RS
 .RE
 .TP
-.B -G, --gapless-mode <n>
+.B \-G, \-\-gapless\-mode <n>
 Method to declare amount of encoder delay (and padding) in M4A
 container.
 These values are mandatory for proper gapless playback on player side.
@@ -246,7 +245,7 @@ Both
 .RE
 .RE
 .TP
-.B --include-sbr-delay
+.B \-\-include\-sbr\-delay
 When specified, count SBR decoder delay in encoder delay.
 .RS
 .PP
@@ -262,44 +261,44 @@ playback.
 LC doesn\[aq]t have such issues.
 .RE
 .TP
-.B -I, --ignorelength
+.B \-I, \-\-ignorelength
 Ignore length field of data chunk in input WAV file.
 .RS
 .RE
 .TP
-.B -S, --silent
+.B \-S, \-\-silent
 Don\[aq]t print progress messages.
 .RS
 .RE
 .TP
-.B --moov-before-mdat
+.B \-\-moov\-before\-mdat
 Place moov box before mdat box in M4A container.
 This option might be important for some hardware players, that are known
 to refuse moov box placed after mdat box.
 .RS
 .RE
 .TP
-.B -R, --raw
+.B \-R, \-\-raw
 Regard input as raw PCM.
 .RS
 .RE
 .TP
-.B --raw-channels <n>
+.B \-\-raw\-channels <n>
 Specify number of channels of raw input (default: 2)
 .RS
 .RE
 .TP
-.B --raw-rate <n>
+.B \-\-raw\-rate <n>
 Specify sample rate of raw input (default: 44100)
 .RS
 .RE
 .TP
-.B --raw-format <spec>
+.B \-\-raw\-format <spec>
 Specify sample format of raw input (default: "S16L").
 \f[B]Spec\f[] is as the following (case insensitive):
 .RS
 .TP
-.B 1st char -- type of sample
+.B 1st char \-\- type of sample
 \f[B]S\f[] (igned) | \f[B]U\f[] (nsigned) | \f[B]F\f[] (loat)
 .RS
 .RE
@@ -309,93 +308,92 @@ bits per channel
 .RS
 .RE
 .TP
-.B Last char -- endianness (can be omitted)
+.B Last char \-\- endianness (can be omitted)
 \f[B]L\f[] (ittle, default) | \f[B]B\f[] (ig)
 .RS
 .RE
 .RE
 .TP
-.B --title <string>
+.B \-\-title <string>
 Set title tag.
 .RS
 .RE
 .TP
-.B --artist <string>
+.B \-\-artist <string>
 Set artist tag.
 .RS
 .RE
 .TP
-.B --album <string>
+.B \-\-album <string>
 Set album tag.
 .RS
 .RE
 .TP
-.B --genre <string>
+.B \-\-genre <string>
 Set genre tag.
 .RS
 .RE
 .TP
-.B --date <string>
+.B \-\-date <string>
 Set date tag.
 .RS
 .RE
 .TP
-.B --composer <string>
+.B \-\-composer <string>
 Set composer tag.
 .RS
 .RE
 .TP
-.B --grouping <string>
+.B \-\-grouping <string>
 Set grouping tag.
 .RS
 .RE
 .TP
-.B --comment <string>
+.B \-\-comment <string>
 Set comment tag.
 .RS
 .RE
 .TP
-.B --album-artist <string>
+.B \-\-album\-artist <string>
 Set album artist tag.
 .RS
 .RE
 .TP
-.B --track <number[/total]>
+.B \-\-track <number[/total]>
 Set track tag, with or without number of total tracks.
 .RS
 .RE
 .TP
-.B --disk <number[/total]>
+.B \-\-disk <number[/total]>
 Set disk tag, with or without number of total discs.
 .RS
 .RE
 .TP
-.B --tempo <n>
+.B \-\-tempo <n>
 Set tempo (BPM) tag.
 .RS
 .RE
 .TP
-.B --tag <fcc>:<value>
+.B \-\-tag <fcc>:<value>
 Set iTunes predefined tag with explicit fourcc key and value.
-See
-https://code.google.com/p/mp4v2/wiki/iTunesMetadata (https://code.google.com/p/mp4v2/wiki/iTunesMetadata)
-for known predefined keys.
+See <https://code.google.com/p/mp4v2/wiki/iTunesMetadata> for known
+predefined keys.
 You can omit first char of \f[B]fcc\f[] when it is the copyright sign.
 .RS
 .RE
 .TP
-.B --tag-from-file <fcc>:<filename>
-Same as --tag, but set content of file as tag value.
+.B \-\-tag\-from\-file <fcc>:<filename>
+Same as \-\-tag, but set content of file as tag value.
 .RS
 .RE
 .TP
-.B --long-tag <name>:<value>
+.B \-\-long\-tag <name>:<value>
 Set arbitrary tag as iTunes custom metadata.
 Stored in com.apple.iTunes field.
 .RS
 .RE
 .TP
-.B --tag-from-json <filename[?dot_notation]>
+.B \-\-tag\-from\-json <filename[?dot_notation]>
 Read tags from JSON.
 By default, tags are assumed to be direct children of the root object in
 JSON.
@@ -403,8 +401,6 @@ Optionally you can specify arbitrary dot notation to locate the object
 containing tags.
 .RS
 .RE
-.PP
-\ 
 .SH EXAMPLES
 .PP
 Encode WAV file into a M4A file.
@@ -412,16 +408,16 @@ MPEG4 AAC LC, VBR quality 3:
 .IP
 .nf
 \f[C]
-fdkaac\ -m3\ foo.wav
+fdkaac\ \-m3\ foo.wav
 \f[]
 .fi
 .PP
 Encode WAV file into a M4A file.
-MPEG4 HE-AAC, bitrate 64kbps:
+MPEG4 HE\-AAC, bitrate 64kbps:
 .IP
 .nf
 \f[C]
-fdkaac\ -p5\ -b64\ foo.wav
+fdkaac\ \-p5\ \-b64\ foo.wav
 \f[]
 .fi
 .PP
@@ -429,7 +425,7 @@ Piping from \f[B]ffmpeg\f[] (you need version supporting CAF output):
 .IP
 .nf
 \f[C]
-ffmpeg\ -i\ foo.flac\ -f\ caf\ -\ |\ fdkaac\ -b128\ -\ -o\ foo.m4a
+ffmpeg\ \-i\ foo.flac\ \-f\ caf\ \-\ |\ fdkaac\ \-b128\ \-\ \-o\ foo.m4a
 \f[]
 .fi
 .PP
@@ -437,10 +433,10 @@ Import tags via json:
 .IP
 .nf
 \f[C]
-ffprobe\ -v\ 0\ -of\ json\ -show_format\ foo.flac\ >foo.json
+ffprobe\ \-v\ 0\ \-of\ json\ \-show_format\ foo.flac\ >foo.json
 
-flac\ -dc\ foo.flac\ |\ \\
-fdkaac\ -\ -ox.m4a\ -m2\ --import-tag-from-json=foo.json?format.tags
+flac\ \-dc\ foo.flac\ |\ \\
+fdkaac\ \-\ \-ox.m4a\ \-m2\ \-\-import\-tag\-from\-json=foo.json?format.tags
 \f[]
 .fi
 .SH NOTES
