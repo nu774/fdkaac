@@ -1,6 +1,28 @@
-2013-11-08  nu774 <honeycomb77@gmail.com>
+2014-01-18  nu774 <honeycomb77@gmail.com>
 
   * update ChangeLog [HEAD]
+
+  * bump version [v0.5.2]
+
+  * fix reading of caf file without chan chunk
+
+2013-11-17  nu774 <honeycomb77@gmail.com>
+
+  * Merge pull request #9 from rbrito/fix-typo [origin/master]
+
+2013-11-18  Rogério Brito <rbrito@ime.usp.br>
+
+  * man: Regen manpage with hyphens escaped.
+
+  * README: Remove trailing whitespaces that end up in the manpages.
+
+  * README: Fix typo in bandwidth to match CLI options.
+
+2013-11-08  nu774 <honeycomb77@gmail.com>
+
+  * add genman.sh, update fdkaac.1
+
+  * update ChangeLog
 
   * bump version [v0.5.1]
 
