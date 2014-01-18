@@ -225,6 +225,7 @@ pcm_reader_t *caf_open(pcm_io_context_t *io,
     memcpy(&reader->io, io, sizeof(pcm_io_context_t));
     reader->tag_callback = tag_callback;
     reader->tag_ctx = tag_ctx;
+    memcpy(reader->chanmap, "\000\001\002\003\004\005\006\007", 8);
 
     if (caf_parse(reader, &data_length) < 0) {
         free(reader);
