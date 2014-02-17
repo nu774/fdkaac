@@ -204,7 +204,7 @@ int apple_chan_chunk(pcm_io_context_t *io, uint32_t chunk_size,
 
     switch (mChannelLayoutTag) {
     case kAudioChannelLayoutTag_UseChannelBitmap:
-        ENSURE(bitcount(mask) == nchannels);
+        ENSURE(bitcount(mChannelBitmap) == nchannels);
         TRY_IO(pcm_skip(io, chunk_size - 12));
         fmt->channel_mask = mChannelBitmap;
         for (i = 0; i < nchannels; ++i)
