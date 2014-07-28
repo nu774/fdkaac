@@ -75,8 +75,8 @@ FILE *aacenc_fopen(const char *name, const char *mode)
         int share = _SH_DENYRW;
         if (strchr(mode, 'r') && !strchr(mode, '+'))
             share = _SH_DENYWR;
-        codepage_decode_wchar(CP_UTF8, name, &wname);
-        codepage_decode_wchar(CP_UTF8, mode, &wmode);
+        codepage_decode_wchar(CP_ACP, name, &wname);
+        codepage_decode_wchar(CP_ACP, mode, &wmode);
         fp = _wfsopen(wname, wmode, share);
         free(wname);
         free(wmode);
@@ -104,7 +104,7 @@ void aacenc_getmainargs(int *argc, char ***argv)
     __wgetmainargs(argc, &wargv, &envp, 1, &si);
     *argv = malloc((*argc + 1) * sizeof(char*));
     for (i = 0; i < *argc; ++i)
-        codepage_encode_wchar(CP_UTF8, wargv[i], &(*argv)[i]);
+        codepage_encode_wchar(CP_ACP, wargv[i], &(*argv)[i]);
     (*argv)[*argc] = 0;
     __aacenc_argv__ = *argv;
     atexit(aacenc_free_mainargs);
@@ -154,7 +154,7 @@ int aacenc_fprintf(FILE *fp, const char *fmt, ...)
         cnt = _vsnprintf(s, cnt + 1, fmt, ap);
         va_end(ap);
 
-        codepage_decode_wchar(CP_UTF8, s, &ws);
+        codepage_decode_wchar(CP_ACP, s, &ws);
         free(s);
         fflush(fp);
         WriteConsoleW(fh, ws, cnt, &nw, 0);
