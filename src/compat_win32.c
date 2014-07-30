@@ -157,7 +157,7 @@ int aacenc_fprintf(FILE *fp, const char *fmt, ...)
         codepage_decode_wchar(CP_UTF8, s, &ws);
         free(s);
         fflush(fp);
-        WriteConsoleW(fh, ws, cnt, &nw, 0);
+        WriteConsoleW(fh, ws, wcslen(ws), &nw, 0);
         free(ws);
     }
     return cnt;
