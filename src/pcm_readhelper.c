@@ -19,15 +19,35 @@
 #include "m4af_endian.h"
 #include "catypes.h"
 
+int pcm_read_frames(pcm_reader_t *r, void *data, unsigned nframes)
+{
+    int n;
+    unsigned count = 0;
+    uint8_t *bp = data;
+    unsigned bpf = pcm_get_format(r)->bytes_per_frame;
+
+    do {
+        n = r->vtbl->read_frames(r, bp, nframes - count);
+        if (n > 0) {
+            count += n;
+            bp += n * bpf;
+        }
+    } while (n > 0 && count < nframes);
+    return count;
+}
+
 int pcm_read(pcm_io_context_t *io, void *buffer, uint32_t size)
 {
     int rc;
     uint32_t count = 0;
+    uint8_t *bp = buffer;
 
     do {
-        rc = io->vtbl->read(io->cookie, buffer, size - count);
-        if (rc > 0)
+        rc = io->vtbl->read(io->cookie, bp, size - count);
+        if (rc > 0) {
             count += rc;
+            bp += rc;
+        }
     } while (rc > 0 && count < size);
     return count > 0 ? count : rc;
 }

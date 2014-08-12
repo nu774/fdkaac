@@ -30,13 +30,16 @@
     <ClCompile Include="..\src\lpc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\lpcm.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\m4af.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\pcm_float_converter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\pcm_native_converter.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\pcm_readhelper.c">
@@ -57,9 +60,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\aacenc.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\caf_reader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\catypes.h">
@@ -84,9 +84,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\progress.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\wav_reader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\missings\getopt.h">

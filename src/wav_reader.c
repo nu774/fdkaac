@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include "wav_reader.h"
+#include "pcm_reader.h"
 
 #define RIFF_FOURCC(a,b,c,d) ((a)|((b)<<8)|((c)<<16)|((d)<<24))
 

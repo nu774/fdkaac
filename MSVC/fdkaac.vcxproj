@@ -100,11 +100,12 @@ copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\ </Command>
     <ClCompile Include="..\src\compat_win32.c" />
     <ClCompile Include="..\src\extrapolater.c" />
     <ClCompile Include="..\src\lpc.c" />
-    <ClCompile Include="..\src\lpcm.c" />
     <ClCompile Include="..\src\m4af.c" />
     <ClCompile Include="..\src\main.c" />
     <ClCompile Include="..\src\metadata.c" />
     <ClCompile Include="..\src\parson.c" />
+    <ClCompile Include="..\src\pcm_float_converter.c" />
+    <ClCompile Include="..\src\pcm_native_converter.c" />
     <ClCompile Include="..\src\pcm_readhelper.c" />
     <ClCompile Include="..\src\pcm_sint16_converter.c" />
     <ClCompile Include="..\src\progress.c" />
@@ -113,7 +114,6 @@ copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\ </Command>
   <ItemGroup>
     <ClInclude Include="..\missings\getopt.h" />
     <ClInclude Include="..\src\aacenc.h" />
-    <ClInclude Include="..\src\caf_reader.h" />
     <ClInclude Include="..\src\catypes.h" />
     <ClInclude Include="..\src\compat.h" />
     <ClInclude Include="..\src\lpc.h" />
@@ -124,7 +124,6 @@ copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\ </Command>
     <ClInclude Include="..\src\parson.h" />
     <ClInclude Include="..\src\pcm_reader.h" />
     <ClInclude Include="..\src\progress.h" />
-    <ClInclude Include="..\src\wav_reader.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="fdk-aac.vcxproj">

@@ -8,11 +8,12 @@ fdkaac_SOURCES = \
     src/caf_reader.c           \
     src/extrapolater.c         \
     src/lpc.c                  \
-    src/lpcm.c                 \
     src/m4af.c                 \
     src/main.c                 \
     src/metadata.c             \
     src/parson.c               \
+    src/pcm_float_converter.c  \
+    src/pcm_native_converter.c \
     src/pcm_readhelper.c       \
     src/pcm_sint16_converter.c \
     src/progress.c             \

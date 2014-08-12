@@ -86,11 +86,11 @@ static int fetch(extrapolater_t *self, unsigned nframes)
 
     if (realloc_buffer(bp, nframes * sfmt->bytes_per_frame) == 0) {
         rc = pcm_read_frames(self->src, bp->data, nframes);
-        bp->count = rc > 0 ? rc : 0;
+        if (rc > 0) bp->count = rc;
     }
     if (rc > 0)
         self->nbuffer ^= 1;
-    return bp->count;
+    return rc <= 0 ? 0 : bp->count;
 }
 
 static int extrapolate(extrapolater_t *self, const buffer_t *bp,
@@ -137,8 +137,27 @@ static int process1(extrapolater_t *self, void *buffer, unsigned nframes)
 
     assert(bp->count <= nframes);
     memcpy(buffer, bp->data, bp->count * sfmt->bytes_per_frame); 
-    if (!fetch(self, nframes))
+    if (!fetch(self, nframes)) {
+        buffer_t *bbp = &self->buffer[self->nbuffer];
+        if (bp->count < 2 * LPC_ORDER) {
+            size_t total = bp->count + bbp->count;
+            if (bbp->count &&
+                realloc_buffer(bbp, total * sfmt->bytes_per_frame) == 0 &&
+                realloc_buffer(bp, total * sfmt->bytes_per_frame) == 0)
+            {
+                memcpy(bbp->data + bbp->count * sfmt->channels_per_frame,
+                       bp->data, bp->count * sfmt->bytes_per_frame);
+                memcpy(bp->data, bbp->data, total * sfmt->bytes_per_frame);
+                bp->count = total;
+            }
+        }
+        if (bp->count >= 2 * LPC_ORDER)
+            extrapolate(self, bp, bbp->data, nframes);
+        else
+            memset(bbp->data, 0, nframes * sfmt->bytes_per_frame);
+        bbp->count = nframes;
         self->process = process2;
+    }
     return bp->count;
 }
 
@@ -146,27 +165,15 @@ static int process2(extrapolater_t *self, void *buffer, unsigned nframes)
 {
     const pcm_sample_description_t *sfmt = pcm_get_format(self->src);
     buffer_t *bp = &self->buffer[self->nbuffer];
-    buffer_t *bbp = &self->buffer[self->nbuffer ^ 1];
-
-    if (bp->count < 2 * LPC_ORDER) {
-        size_t total = bp->count + bbp->count;
-        if (bbp->count &&
-            realloc_buffer(bbp, total * sfmt->bytes_per_frame) == 0)
-        {
-            memcpy(bbp->data + bbp->count * sfmt->channels_per_frame,
-                   bp->data, bp->count * sfmt->bytes_per_frame);
-            bbp->count = total;
-            bp->count = 0;
-            bp = bbp;
-            self->nbuffer ^= 1;
-        }
-    }
-    self->process = process3;
-
-    if (bp->count >= 2 * LPC_ORDER)
-        extrapolate(self, bp, buffer, nframes);
-    else
-        memset(buffer, 0, nframes * sfmt->bytes_per_frame);
+    if (bp->count < nframes)
+        nframes = bp->count;
+    memcpy(buffer, bp->data, nframes * sfmt->bytes_per_frame); 
+    if (bp->count > nframes)
+        memmove(bp->data, bp->data + nframes * sfmt->channels_per_frame,
+                (bp->count - nframes) * sfmt->bytes_per_frame);
+    bp->count -= nframes;
+    if (bp->count == 0)
+        self->process = process3;
     return nframes;
 }
 

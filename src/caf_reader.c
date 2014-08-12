@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include "caf_reader.h"
+#include "pcm_reader.h"
 #include "m4af.h"
 
 typedef struct caf_reader_t {

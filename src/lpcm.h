@@ -61,7 +61,4 @@ inline double pcm_clip(double n, double min_value, double max_value)
     return n;
 }
 
-int pcm_convert_to_native_sint16(const pcm_sample_description_t *format,
-                                 const void *input, uint32_t nframes,
-                                 int16_t *result);
 #endif

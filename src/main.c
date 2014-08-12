@@ -33,8 +33,7 @@
 #include <windows.h>
 #endif
 #include "compat.h"
-#include "wav_reader.h"
-#include "caf_reader.h"
+#include "pcm_reader.h"
 #include "aacenc.h"
 #include "m4af.h"
 #include "progress.h"
@@ -749,8 +748,9 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
             goto END;
         }
     }
-    if ((reader = pcm_open_sint16_converter(reader)) != 0)
-        reader = extrapolater_open(reader);
+    if ((reader = pcm_open_native_converter(reader)) != 0)
+        if ((reader = pcm_open_sint16_converter(reader)) != 0)
+            reader = extrapolater_open(reader);
     return reader;
 END:
     return 0;
@@ -824,8 +824,7 @@ int main(int argc, char **argv)
             goto END;
         m4af_set_decoder_specific_info(m4af, 0,
                                        aacinfo.confBuf, aacinfo.confSize);
-        m4af_set_fixed_frame_duration(m4af, 0,
-                                      framelen >> scale_shift);
+        m4af_set_fixed_frame_duration(m4af, 0, framelen >> scale_shift);
         m4af_set_vbr_mode(m4af, 0, params.bitrate_mode);
         m4af_set_priming_mode(m4af, params.gapless_mode + 1);
         m4af_begin_write(m4af);

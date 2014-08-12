@@ -6,6 +6,7 @@
 #define PCM_READER_H
 
 #include "lpcm.h"
+#include "metadata.h"
 
 typedef struct pcm_reader_t pcm_reader_t;
 
@@ -54,11 +55,7 @@ int64_t pcm_get_position(pcm_reader_t *r)
     return r->vtbl->get_position(r);
 }
 
-static inline
-int64_t pcm_read_frames(pcm_reader_t *r, void *data, unsigned nframes)
-{
-    return r->vtbl->read_frames(r, data, nframes);
-}
+int pcm_read_frames(pcm_reader_t *r, void *data, unsigned nframes);
 
 static inline
 void pcm_teardown(pcm_reader_t **r)
@@ -111,6 +108,14 @@ int pcm_scanb(pcm_io_context_t *io, const char *fmt, ...);
 int apple_chan_chunk(pcm_io_context_t *io, uint32_t chunk_size,
                      pcm_sample_description_t *fmt, uint8_t *mapping);
 
+pcm_reader_t *wav_open(pcm_io_context_t *io, int ignore_length);
+pcm_reader_t *raw_open(pcm_io_context_t *io,
+                       const pcm_sample_description_t *desc);
+pcm_reader_t *caf_open(pcm_io_context_t *io,
+                       aacenc_tag_callback_t tag_callback, void *tag_ctx);
+
+pcm_reader_t *pcm_open_native_converter(pcm_reader_t *reader);
+pcm_reader_t *pcm_open_float_converter(pcm_reader_t *reader);
 pcm_reader_t *pcm_open_sint16_converter(pcm_reader_t *reader);
 
 pcm_reader_t *extrapolater_open(pcm_reader_t *reader);

@@ -43,10 +43,10 @@ static int64_t get_position(pcm_reader_t *reader)
 
 static int read_frames(pcm_reader_t *reader, void *buffer, unsigned nframes)
 {
+    unsigned i, count;
     pcm_sint16_converter_t *self = (pcm_sint16_converter_t *)reader;
     const pcm_sample_description_t *sfmt = pcm_get_format(self->src);
     unsigned bytes = nframes * sfmt->bytes_per_frame;
-
     if (self->capacity < bytes) {
         void *p = realloc(self->pivot, bytes);
         if (!p) return -1;
@@ -54,8 +54,25 @@ static int read_frames(pcm_reader_t *reader, void *buffer, unsigned nframes)
         self->capacity = bytes;
     }
     nframes = pcm_read_frames(self->src, self->pivot, nframes);
-    if (pcm_convert_to_native_sint16(sfmt, self->pivot, nframes, buffer) < 0)
-        return -1;
+    count = nframes * sfmt->channels_per_frame;
+    if (PCM_IS_FLOAT(sfmt)) {
+        float   *ip = self->pivot;
+        int16_t *op = buffer;
+        for (i = 0; i < count; ++i)
+            op[i] = pcm_clip(ip[i] * 32768.0, -32768.0, 32767.0);
+    } else {
+        int32_t *ip = self->pivot;
+        int16_t *op = buffer;
+        if (sfmt->bits_per_channel <= 16) {
+            for (i = 0; i < count; ++i)
+                op[i] = ip[i] >> 16;
+        } else {
+            for (i = 0; i < count; ++i) {
+                int n = ((ip[i] >> 15) + 1) >> 1;
+                op[i] = (n == 0x8000) ? 0x7fff : n;
+            }
+        }
+    }
     return nframes;
 }
 
@@ -83,12 +100,8 @@ pcm_reader_t *pcm_open_sint16_converter(pcm_reader_t *reader)
     self->vtbl = &my_vtable;
     memcpy(&self->format, pcm_get_format(reader), sizeof(self->format));
     fmt = &self->format;
-#if WORDS_BIGENDIAN
-    fmt->sample_type = PCM_TYPE_SINT_BE;
-#else
-    fmt->sample_type = PCM_TYPE_SINT;
-#endif
     fmt->bits_per_channel = 16;
+    fmt->sample_type = PCM_TYPE_SINT;
     fmt->bytes_per_frame = 2 * fmt->channels_per_frame;
     return (pcm_reader_t *)self;
 }
