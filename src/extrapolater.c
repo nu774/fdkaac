@@ -126,7 +126,13 @@ static int process0(extrapolater_t *self, void *buffer, unsigned nframes)
         reverse_buffer(buffer, nframes, nchannels);
         reverse_buffer(bp->data, bp->count, nchannels);
     }
-    self->process = bp->count ? process1 : process2;
+    if (bp->count)
+        self->process = process1;
+    else {
+        memset(bp->data, 0, nframes * sfmt->bytes_per_frame);
+        bp->count = nframes;
+        self->process = process2;
+    }
     return nframes;
 }
 

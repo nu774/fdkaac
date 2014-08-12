@@ -27,6 +27,9 @@
     <ClCompile Include="..\src\extrapolater.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\limiter.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\lpc.c">
       <Filter>Source Files</Filter>
     </ClCompile>

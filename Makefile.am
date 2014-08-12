@@ -7,6 +7,7 @@ fdkaac_SOURCES = \
     src/aacenc.c               \
     src/caf_reader.c           \
     src/extrapolater.c         \
+    src/limiter.c              \
     src/lpc.c                  \
     src/m4af.c                 \
     src/main.c                 \

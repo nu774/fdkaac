@@ -119,5 +119,6 @@ pcm_reader_t *pcm_open_float_converter(pcm_reader_t *reader);
 pcm_reader_t *pcm_open_sint16_converter(pcm_reader_t *reader);
 
 pcm_reader_t *extrapolater_open(pcm_reader_t *reader);
+pcm_reader_t *limiter_open(pcm_reader_t *reader);
 
 #endif

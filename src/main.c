@@ -698,7 +698,7 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
     if ((params->input_fp = aacenc_fopen(params->input_filename, "rb")) == 0) {
         aacenc_fprintf(stderr, "ERROR: %s: %s\n", params->input_filename,
                        strerror(errno));
-        goto END;
+        goto FAIL;
     }
     io.cookie = params->input_fp;
     if (fstat(fileno(params->input_fp), &stb) == 0
@@ -712,7 +712,7 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
         pcm_sample_description_t desc = { 0 };
         if (parse_raw_spec(params->raw_format, &desc) < 0) {
             fprintf(stderr, "ERROR: invalid raw-format spec\n");
-            goto END;
+            goto FAIL;
         }
         desc.sample_rate = params->raw_rate;
         desc.channels_per_frame = params->raw_channels;
@@ -720,7 +720,7 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
         desc.bytes_per_frame = params->raw_channels * bytes_per_channel;
         if ((reader = raw_open(&io, &desc)) == 0) {
             fprintf(stderr, "ERROR: failed to open raw input\n");
-            goto END;
+            goto FAIL;
         }
     } else {
         int c;
@@ -730,7 +730,7 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
         case 'R':
             if ((reader = wav_open(&io, params->ignore_length)) == 0) {
                 fprintf(stderr, "ERROR: broken / unsupported input file\n");
-                goto END;
+                goto FAIL;
             }
             break;
         case 'c':
@@ -740,19 +740,21 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
                                    aacenc_translate_generic_text_tag,
                                    &params->source_tag_ctx)) == 0) {
                 fprintf(stderr, "ERROR: broken / unsupported input file\n");
-                goto END;
+                goto FAIL;
             }
             break;
         default:
             fprintf(stderr, "ERROR: unsupported input file\n");
-            goto END;
+            goto FAIL;
         }
     }
-    if ((reader = pcm_open_native_converter(reader)) != 0)
-        if ((reader = pcm_open_sint16_converter(reader)) != 0)
-            reader = extrapolater_open(reader);
+    reader = pcm_open_native_converter(reader);
+    if (reader && PCM_IS_FLOAT(pcm_get_format(reader)))
+        reader = limiter_open(reader);
+    if (reader && (reader = pcm_open_sint16_converter(reader)) != 0)
+        reader = extrapolater_open(reader);
     return reader;
-END:
+FAIL:
     return 0;
 }
 
