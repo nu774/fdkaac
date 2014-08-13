@@ -1,12 +1,24 @@
-2014-07-30  nu774 <honeycomb77@gmail.com>
+2014-08-13  nu774 <honeycomb77@gmail.com>
 
   * update ChangeLog [HEAD]
+
+  * bump version [v0.6.0]
+
+2014-08-12  nu774 <honeycomb77@gmail.com>
+
+  * apply limiter when input is float
+
+  * refactor pcm reader framework
+
+2014-07-30  nu774 <honeycomb77@gmail.com>
+
+  * update ChangeLog [origin/master]
 
   * win32compat: fix aacenc_printf() not to write junk characters [v0.5.4]
 
 2014-05-12  nu774 <honeycomb77@gmail.com>
 
-  * write INSTALL [origin/master]
+  * write INSTALL
 
 2014-03-14  nu774 <honeycomb77@gmail.com>
 
