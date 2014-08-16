@@ -4,7 +4,6 @@ Prerequiste
 To build fdkaac, you need the followings:
 - libfdk-aac (https://github.com/mstorsjo/fdk-aac)
 - GNU autoconf, GNU automake
-- GNU gettext (for iconv.m4)
 
 libfdk-aac is always required, and probably you have to build it yourself.
 Others are required only when you build by configure and make on Unix-like
