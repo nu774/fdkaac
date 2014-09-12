@@ -824,6 +824,7 @@ int main(int argc, char **argv)
         if ((m4af = m4af_create(M4AF_CODEC_MP4A, scale, &m4af_io,
                                 params.output_fp)) < 0)
             goto END;
+        m4af_set_num_channels(m4af, 0, sample_format->channels_per_frame);
         m4af_set_decoder_specific_info(m4af, 0,
                                        aacinfo.confBuf, aacinfo.confSize);
         m4af_set_fixed_frame_duration(m4af, 0, framelen >> scale_shift);

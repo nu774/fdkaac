@@ -104,6 +104,9 @@ void m4af_set_priming(m4af_ctx_t *ctx, uint32_t track_idx,
 
 void m4af_set_priming_mode(m4af_ctx_t *ctx, int mode);
 
+void m4af_set_num_channels(m4af_ctx_t *ctx, uint32_t track_idx,
+                           uint16_t channels);
+
 void m4af_set_fixed_frame_duration(m4af_ctx_t *ctx, uint32_t track_idx,
                                    uint32_t length);
 

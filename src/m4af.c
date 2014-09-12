@@ -42,6 +42,7 @@ typedef struct m4af_chunk_entry_t {
 typedef struct m4af_track_t {
     uint32_t codec;
     uint32_t timescale;
+    uint16_t num_channels;
     int64_t creation_time;
     int64_t modification_time;
     int64_t duration;
@@ -211,6 +212,7 @@ m4af_ctx_t *m4af_create(uint32_t codec, uint32_t timescale,
     ctx->track[0].timescale = timescale;
     ctx->track[0].creation_time = timestamp;
     ctx->track[0].modification_time = timestamp;
+    ctx->track[0].num_channels = 2;
     return ctx;
 }
 
@@ -252,6 +254,12 @@ void m4af_teardown(m4af_ctx_t **ctxp)
         m4af_free_itmf_table(ctx);
     m4af_free(ctx);
     *ctxp = 0;
+}
+
+void m4af_set_num_channels(m4af_ctx_t *ctx, uint32_t track_idx,
+                           uint16_t channels)
+{
+    ctx->track[track_idx].num_channels = channels;
 }
 
 void m4af_set_fixed_frame_duration(m4af_ctx_t *ctx, uint32_t track_idx,
@@ -816,11 +824,13 @@ void m4af_write_mp4a_box(m4af_ctx_t *ctx, uint32_t track_idx)
                "\0\001"       /* data_reference_index: 1 */
                "\0\0\0\0"     /* reserved[0]             */
                "\0\0\0\0"     /* reserved[1]             */
-               "\0\002"       /* channelcount: 2         */
+               ,16);
+    m4af_write16(ctx, track->num_channels);
+    m4af_write(ctx,
                "\0\020"       /* samplesize: 16          */
                "\0\0"         /* pre_defined             */
                "\0\0"         /* reserved                */
-               ,24);
+               ,6);
     if (track->codec == M4AF_FOURCC('m','p','4','a')) {
         m4af_write32(ctx, track->timescale << 16);
         m4af_write_esds_box(ctx, track_idx);
