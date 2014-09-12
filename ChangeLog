@@ -1,6 +1,22 @@
-2014-08-13  nu774 <honeycomb77@gmail.com>
+2014-09-13  nu774 <honeycomb77@gmail.com>
 
   * update ChangeLog [HEAD]
+
+  * bump version [v0.6.1]
+
+2014-09-12  nu774 <honeycomb77@gmail.com>
+
+  * write actual number of channels to mp4a box
+
+2014-08-17  nu774 <honeycomb77@gmail.com>
+
+  * update INSTALL [origin/master]
+
+  * add m4 macros
+
+2014-08-13  nu774 <honeycomb77@gmail.com>
+
+  * update ChangeLog
 
   * bump version [v0.6.0]
 
@@ -12,7 +28,7 @@
 
 2014-07-30  nu774 <honeycomb77@gmail.com>
 
-  * update ChangeLog [origin/master]
+  * update ChangeLog
 
   * win32compat: fix aacenc_printf() not to write junk characters [v0.5.4]
 
