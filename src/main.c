@@ -563,11 +563,20 @@ int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
             ++encoded;
             if (encoded == 1 || encoded == 3)
                 continue;
-            obp = &obuf[flip];
-            if (write_sample(params->output_fp, m4af, obp) < 0)
+
+            if (write_sample(params->output_fp, m4af, &obuf[flip]) < 0)
                 goto END;
             ++frames_written;
         } while (remaining > 0);
+        /*
+         * When interrupted, we haven't pulled out last extrapolated frames
+         * from the reader. Therefore, we have to write the final outcome.
+         */
+        if (g_interrupted) {
+            if (write_sample(params->output_fp, m4af, &obp[flip^1]) < 0)
+                goto END;
+            ++frames_written;
+        }
     }
 DONE:
     if (!params->silent)
