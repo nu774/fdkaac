@@ -104,10 +104,35 @@ typedef struct m4af_box_parser_t {
 } m4af_box_parser_t;
 
 static
+int m4af_write_null_cb(void *cookie, const void *data, uint32_t size)
+{
+    int64_t *pos = cookie;
+    *pos += size;
+    return 0;
+}
+static
+int m4af_seek_null_cb(void *cookie, int64_t off, int whence)
+{
+    int64_t *pos = cookie;
+    *pos = off; /* XXX: we use only SEEK_SET */
+    return 0;
+}
+static
+int64_t m4af_tell_null_cb(void *cookie)
+{
+    return *((int64_t*)cookie);
+}
+
+static m4af_io_callbacks_t m4af_null_io_callbacks = {
+    0, m4af_write_null_cb, m4af_seek_null_cb, m4af_tell_null_cb
+};
+
+static
 int64_t m4af_timestamp(void)
 {
     return (int64_t)(time(0)) + (((1970 - 1904) * 365) + 17) * 24 * 60 * 60;
 }
+
 
 /*
  * http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2 
@@ -664,7 +689,7 @@ void m4af_write_stco_box(m4af_ctx_t *ctx, uint32_t track_idx)
     m4af_track_t *track = &ctx->track[track_idx];
     uint32_t i;
     m4af_chunk_entry_t *index = track->chunk_table;
-    int is_co64 = (ctx->mdat_pos + ctx->mdat_size > UINT32_MAX);
+    int is_co64 = index[track->num_chunks - 1].offset > 0xffffffff;
     int64_t pos = m4af_tell(ctx);
 
     m4af_write32(ctx, 0); /* size */
@@ -1012,7 +1037,7 @@ void m4af_write_hdlr_box(m4af_ctx_t *ctx, uint32_t track_idx, const char *type)
     /* reserved[0] */
     m4af_write(ctx, !strcmp(type, "mdir") ? "appl" : "\0\0\0\0", 4);
     /* reserved[1], reserved[2], name */
-    m4af_write(ctx, reserved_and_name, (pos & 1) ? 9 : 10);
+    m4af_write(ctx, reserved_and_name, 9);
     m4af_update_box_size(ctx, pos);
 }
 
@@ -1318,27 +1343,58 @@ void m4af_finalize_mdat(m4af_ctx_t *ctx)
 }
 
 static
+uint64_t m4af_patch_moov(m4af_ctx_t *ctx, uint32_t moov_size, uint32_t offset)
+{
+    int64_t pos = 0;
+    uint32_t moov_size2;
+    int i, j;
+    m4af_io_callbacks_t io_reserve = ctx->io;
+    void *io_cookie_reserve = ctx->io_cookie;
+
+    for (i = 0; i < ctx->num_tracks; ++i)
+        for (j = 0; j < ctx->track[i].num_chunks; ++j)
+            ctx->track[i].chunk_table[j].offset += offset;
+
+    ctx->io = m4af_null_io_callbacks;
+    ctx->io_cookie = &pos;
+    moov_size2 = m4af_write_moov_box(ctx);
+
+    if (moov_size2 != moov_size) {
+        /* stco -> co64 switching */
+        for (i = 0; i < ctx->num_tracks; ++i)
+            for (j = 0; j < ctx->track[i].num_chunks; ++j)
+                ctx->track[i].chunk_table[j].offset += moov_size2 - moov_size;
+        moov_size2 = m4af_write_moov_box(ctx);
+    }
+    ctx->io = io_reserve;
+    ctx->io_cookie = io_cookie_reserve;
+    return moov_size2;
+}
+
+static
 void m4af_shift_mdat_pos(m4af_ctx_t *ctx, uint32_t offset)
 {
     unsigned i, j;
     int64_t begin, end;
-    char buf[8192];
+    char *buf;
+    
+    buf = malloc(1024*1024*2);
 
     end = ctx->mdat_pos + ctx->mdat_size;
-    for (; (begin = m4af_max(ctx->mdat_pos, end - 8192)) < end; end = begin) {
+    for (; (begin = m4af_max(ctx->mdat_pos, end - 1024*1024*2)) < end;
+            end = begin) {
         m4af_set_pos(ctx, begin);
         ctx->io.read(ctx->io_cookie, buf, end - begin);
         m4af_set_pos(ctx, begin + offset);
         m4af_write(ctx, buf, end - begin);
     }
-    for (i = 0; i < ctx->num_tracks; ++i)
-        for (j = 0; j < ctx->track[i].num_chunks; ++j)
-            ctx->track[i].chunk_table[j].offset += offset;
     ctx->mdat_pos += offset;
     m4af_set_pos(ctx, ctx->mdat_pos - 16);
     m4af_write_free_box(ctx, 0);
     m4af_write(ctx, "\0\0\0\0mdat", 8);
     m4af_finalize_mdat(ctx);
+
+    free(buf);
 }
 
 int m4af_finalize(m4af_ctx_t *ctx, int optimize)
@@ -1367,7 +1423,8 @@ int m4af_finalize(m4af_ctx_t *ctx, int optimize)
     moov_size = m4af_write_moov_box(ctx);
     if (optimize) {
         int64_t pos;
-        m4af_shift_mdat_pos(ctx, moov_size + 1024);
+        uint32_t moov_size2 = m4af_patch_moov(ctx, moov_size, moov_size + 1024);
+        m4af_shift_mdat_pos(ctx, moov_size2 + 1024);
         m4af_set_pos(ctx, 32);
         m4af_write_moov_box(ctx);
         pos = m4af_tell(ctx);
