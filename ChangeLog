@@ -1,8 +1,18 @@
-2014-09-13  nu774 <honeycomb77@gmail.com>
+2015-02-14  nu774 <honeycomb77@gmail.com>
 
   * update ChangeLog [HEAD]
 
-  * bump version [v0.6.1]
+  * bump version [v0.6.2]
+
+  * take stco->co64 switch due to mdat relocation into account on finalizing m4a
+
+  * fix incorrect iTunSMPB written when interrupted by signals
+
+2014-09-13  nu774 <honeycomb77@gmail.com>
+
+  * update ChangeLog [origin/master]
+
+  * bump version
 
 2014-09-12  nu774 <honeycomb77@gmail.com>
 
@@ -10,7 +20,7 @@
 
 2014-08-17  nu774 <honeycomb77@gmail.com>
 
-  * update INSTALL [origin/master]
+  * update INSTALL
 
   * add m4 macros
 
