@@ -39,6 +39,14 @@ typedef struct m4af_chunk_entry_t {
     uint32_t duration;
 } m4af_chunk_entry_t;
 
+typedef struct m4af_itmf_entry_t {
+    uint32_t fcc;
+    char *name;
+    uint32_t type_code;
+    char *data;
+    uint32_t data_size;
+} m4af_itmf_entry_t;
+
 typedef struct m4af_track_t {
     uint32_t codec;
     uint32_t timescale;

@@ -71,14 +71,6 @@ typedef struct m4af_io_callbacks_t {
     m4af_tell_callback tell;
 } m4af_io_callbacks_t;
 
-typedef struct m4af_itmf_entry_t {
-    uint32_t fcc;
-    char *name;
-    uint32_t type_code;
-    char *data;
-    uint32_t data_size;
-} m4af_itmf_entry_t;
-
 typedef struct m4af_ctx_t m4af_ctx_t;
 
 
