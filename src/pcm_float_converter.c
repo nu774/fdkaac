@@ -41,7 +41,6 @@ static int64_t get_position(pcm_reader_t *reader)
 
 static int read_frames(pcm_reader_t *reader, void *buffer, unsigned nframes)
 {
-    unsigned i;
     pcm_float_converter_t *self = (pcm_float_converter_t *)reader;
     const pcm_sample_description_t *sfmt = pcm_get_format(self->src);
     nframes = pcm_read_frames(self->src, buffer, nframes);
