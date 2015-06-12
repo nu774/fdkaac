@@ -1382,7 +1382,6 @@ uint64_t m4af_patch_moov(m4af_ctx_t *ctx, uint32_t moov_size, uint32_t offset)
 static
 void m4af_shift_mdat_pos(m4af_ctx_t *ctx, uint32_t offset)
 {
-    unsigned i, j;
     int64_t begin, end;
     char *buf;
     
