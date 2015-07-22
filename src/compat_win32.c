@@ -97,11 +97,16 @@ void aacenc_free_mainargs(void)
 
 void aacenc_getmainargs(int *argc, char ***argv)
 {
+    static int (*fp__wgetmainargs)(int *, wchar_t ***, wchar_t ***,
+                                   int, _startupinfo *);
     int i;
     wchar_t **wargv, **envp;
     _startupinfo si = { 0 };
+    HMODULE h = LoadLibraryA("msvcrt.dll");
+    fp__wgetmainargs = (void *)GetProcAddress(h, "__wgetmainargs");
+    (*fp__wgetmainargs)(argc, &wargv, &envp, 1, &si);
+    FreeLibrary(h);
 
-    __wgetmainargs(argc, &wargv, &envp, 1, &si);
     *argv = malloc((*argc + 1) * sizeof(char*));
     for (i = 0; i < *argc; ++i)
         codepage_encode_wchar(CP_UTF8, wargv[i], &(*argv)[i]);
