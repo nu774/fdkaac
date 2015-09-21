@@ -32,20 +32,9 @@ FILE *aacenc_fopen(const char *name, const char *mode)
     return fp;
 }
 
-void aacenc_getmainargs(int *argc, char ***argv)
+int aacenc_seekable(FILE *fp)
 {
-    return;
-}
-
-int aacenc_fprintf(FILE *fp, const char *fmt, ...)
-{
-    va_list ap;
-    int cnt;
-
-    va_start(ap, fmt);
-    cnt = vfprintf(fp, fmt, ap);
-    va_end(ap);
-    return cnt;
+    return fseek(fp, 0, SEEK_CUR) == 0;
 }
 
 /*

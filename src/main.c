@@ -702,7 +702,6 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
 {
     pcm_io_context_t io = { 0 };
     pcm_reader_t *reader = 0;
-    struct stat stb = { 0 };
 
     if ((params->input_fp = aacenc_fopen(params->input_filename, "rb")) == 0) {
         aacenc_fprintf(stderr, "ERROR: %s: %s\n", params->input_filename,
@@ -710,8 +709,7 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
         goto FAIL;
     }
     io.cookie = params->input_fp;
-    if (fstat(fileno(params->input_fp), &stb) == 0
-            && (stb.st_mode & S_IFMT) == S_IFREG)
+    if (aacenc_seekable(params->input_fp))
         io.vtbl = &pcm_io_vtbl;
     else
         io.vtbl = &pcm_io_vtbl_noseek;

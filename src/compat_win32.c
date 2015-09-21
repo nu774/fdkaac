@@ -20,14 +20,7 @@
 #include "compat.h"
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-
-typedef struct
-{
-    int newmode;
-} _startupinfo;
-
-extern
-int __wgetmainargs(int *, wchar_t ***, wchar_t ***, int, _startupinfo *);
+#include <shellapi.h>
 
 int64_t aacenc_timer(void)
 {
@@ -39,6 +32,11 @@ int64_t aacenc_timer(void)
     ftime(&tv);
 #endif
     return (int64_t)tv.time * 1000 + tv.millitm;
+}
+
+int aacenc_seekable(FILE *fp)
+{
+    return GetFileType((HANDLE)_get_osfhandle(_fileno(fp))) == FILE_TYPE_DISK;
 }
 
 static
@@ -97,19 +95,14 @@ void aacenc_free_mainargs(void)
 
 void aacenc_getmainargs(int *argc, char ***argv)
 {
-    static int (*fp__wgetmainargs)(int *, wchar_t ***, wchar_t ***,
-                                   int, _startupinfo *);
-    int i;
-    wchar_t **wargv, **envp;
-    _startupinfo si = { 0 };
-    HMODULE h = LoadLibraryA("msvcrt.dll");
-    fp__wgetmainargs = (void *)GetProcAddress(h, "__wgetmainargs");
-    (*fp__wgetmainargs)(argc, &wargv, &envp, 1, &si);
-    FreeLibrary(h);
+	int i;
+	wchar_t **wargv;
 
-    *argv = malloc((*argc + 1) * sizeof(char*));
+	wargv = CommandLineToArgvW(GetCommandLineW(), argc);
+	*argv = malloc((*argc + 1) * sizeof(char*));
     for (i = 0; i < *argc; ++i)
         codepage_encode_wchar(CP_UTF8, wargv[i], &(*argv)[i]);
+	LocalFree(wargv);
     (*argv)[*argc] = 0;
     __aacenc_argv__ = *argv;
     atexit(aacenc_free_mainargs);
