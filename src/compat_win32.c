@@ -95,14 +95,14 @@ void aacenc_free_mainargs(void)
 
 void aacenc_getmainargs(int *argc, char ***argv)
 {
-	int i;
-	wchar_t **wargv;
+    int i;
+    wchar_t **wargv;
 
-	wargv = CommandLineToArgvW(GetCommandLineW(), argc);
-	*argv = malloc((*argc + 1) * sizeof(char*));
+    wargv = CommandLineToArgvW(GetCommandLineW(), argc);
+    *argv = malloc((*argc + 1) * sizeof(char*));
     for (i = 0; i < *argc; ++i)
         codepage_encode_wchar(CP_UTF8, wargv[i], &(*argv)[i]);
-	LocalFree(wargv);
+        LocalFree(wargv);
     (*argv)[*argc] = 0;
     __aacenc_argv__ = *argv;
     atexit(aacenc_free_mainargs);
