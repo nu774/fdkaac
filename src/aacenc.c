@@ -27,7 +27,7 @@ int aacenc_is_sbr_ratio_available()
 #else
     LIB_INFO lib_info;
     aacenc_get_lib_info(&lib_info);
-    return lib_info.version > 0x03040000;
+    return lib_info.version > 0x03040800;
 #endif
 }
 
@@ -211,7 +211,7 @@ int aacenc_init(HANDLE_AACENCODER *encoder, const aacenc_param_t *params,
     aacEncoder_SetParam(*encoder, AACENC_SBR_MODE, params->lowdelay_sbr);
 
 #if AACENCODER_LIB_VL0 > 3 || (AACENCODER_LIB_VL0==3 && AACENCODER_LIB_VL1>=4)
-    if (lib_info.version > 0x03040000)
+    if (lib_info.version > 0x03040800)
         aacEncoder_SetParam(*encoder, AACENC_SBR_RATIO, params->sbr_ratio);
 #endif
 
