@@ -13,6 +13,13 @@
 #include <string.h>
 #include "aacenc.h"
 
+int aacenc_is_explicit_bw_compatible_sbr_signaling_available()
+{
+    LIB_INFO lib_info;
+    aacenc_get_lib_info(&lib_info);
+    return lib_info.version > 0x03040900;
+}
+
 int aacenc_is_sbr_ratio_available()
 {
 #if AACENCODER_LIB_VL0 < 3 || (AACENCODER_LIB_VL0==3 && AACENCODER_LIB_VL1<4)
@@ -62,6 +69,70 @@ void aacenc_get_lib_info(LIB_INFO *info)
         }
     }
     free(lib_info);
+}
+
+static const unsigned aacenc_sampling_freq_tab[] = {
+    96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 
+    16000, 12000, 11025, 8000, 7350, 0, 0, 0
+};
+
+static
+unsigned sampling_freq_index(unsigned rate)
+{
+    unsigned i;
+    for (i = 0; aacenc_sampling_freq_tab[i]; ++i)
+        if (aacenc_sampling_freq_tab[i] == rate)
+            return i;
+    return 0xf;
+}
+
+/*
+ * Append backward compatible SBR/PS signaling to implicit signaling ASC,
+ * if SBR/PS is present.
+ */
+int aacenc_mp4asc(const aacenc_param_t *params,
+                  const uint8_t *asc, uint32_t ascsize,
+                  uint8_t *outasc, uint32_t *outsize)
+{
+    unsigned asc_sfreq = aacenc_sampling_freq_tab[(asc[0]&0x7)<<1 |asc[1]>>7];
+    unsigned shift = aacenc_is_dual_rate_sbr(params);
+
+    switch (params->profile) {
+    case AOT_SBR:
+    case AOT_PS:
+        if (!shift)
+            break;
+        if (*outsize < ascsize + 3)
+            return -1;
+        memcpy(outasc, asc, ascsize);
+        /* syncExtensionType:11 (value:0x2b7) */
+        outasc[ascsize+0] = 0x2b << 1;
+        outasc[ascsize+1] = 0x7 << 5;
+        /* extensionAudioObjectType:5 (value:5)*/
+        outasc[ascsize+1] |= 5;
+        /* sbrPresentFlag:1 (value:1) */
+        outasc[ascsize+2] = 0x80;
+        /* extensionSamplingFrequencyIndex:4 */
+        outasc[ascsize+2] |= sampling_freq_index(asc_sfreq << shift) << 3;
+        if (params->profile == AOT_SBR) {
+            *outsize = ascsize + 3;
+            return 0;
+        }
+        if (*outsize < ascsize + 5)
+            return -1;
+        /* syncExtensionType:11 (value:0x548) */
+        outasc[ascsize+2] |= 0x5;
+        outasc[ascsize+3] = 0x48;
+        /* psPresentFlag:1 (value:1) */
+        outasc[ascsize+4] = 0x80;
+        *outsize = ascsize + 5;
+        return 0;
+    }
+    if (*outsize < ascsize)
+        return -1;
+    memcpy(outasc, asc, ascsize);
+    *outsize = ascsize;
+    return 0;
 }
 
 static

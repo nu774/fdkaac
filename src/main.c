@@ -801,12 +801,14 @@ int main(int argc, char **argv)
         params.sbr_ratio = 2;
     }
     scale_shift = aacenc_is_dual_rate_sbr((aacenc_param_t*)&params);
-    params.sbr_signaling =
-        (params.transport_format == TT_MP4_LOAS) ? 2 :
-        (params.transport_format == TT_MP4_RAW)  ? 1 : 0;
-    if (sbr_mode && !scale_shift)
-        params.sbr_signaling = 2;
-
+    params.sbr_signaling = 0;
+    if (sbr_mode) {
+        if (params.transport_format == TT_MP4_LOAS || !scale_shift)
+            params.sbr_signaling = 2;
+        if (params.transport_format == TT_MP4_RAW &&
+            aacenc_is_explicit_bw_compatible_sbr_signaling_available())
+            params.sbr_signaling = 1;
+    }
     if (aacenc_init(&encoder, (aacenc_param_t*)&params, sample_format,
                     &aacinfo) < 0)
         goto END;
@@ -832,9 +834,17 @@ int main(int argc, char **argv)
                                 params.output_fp)) < 0)
             goto END;
         m4af_set_num_channels(m4af, 0, sample_format->channels_per_frame);
-        m4af_set_decoder_specific_info(m4af, 0,
-                                       aacinfo.confBuf, aacinfo.confSize);
         m4af_set_fixed_frame_duration(m4af, 0, framelen >> scale_shift);
+        if (aacenc_is_explicit_bw_compatible_sbr_signaling_available())
+            m4af_set_decoder_specific_info(m4af, 0,
+                                           aacinfo.confBuf, aacinfo.confSize);
+        else {
+            uint8_t mp4asc[32];
+            uint32_t ascsize = sizeof(mp4asc);
+            aacenc_mp4asc((aacenc_param_t*)&params, aacinfo.confBuf,
+                          aacinfo.confSize, mp4asc, &ascsize);
+            m4af_set_decoder_specific_info(m4af, 0, mp4asc, ascsize);
+        }
         m4af_set_vbr_mode(m4af, 0, params.bitrate_mode);
         m4af_set_priming_mode(m4af, params.gapless_mode + 1);
         m4af_begin_write(m4af);
