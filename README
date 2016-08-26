@@ -52,15 +52,6 @@ OPTIONS
     39
     :   MPEG-4 AAC ELD
 
-    129
-    :   MPEG-2 AAC LC
-
-    132
-    :   MPEG-2 HE-AAC (SBR)
-
-    156
-    :   MPEG-2 HE-AAC v2 (SBR+PS)
-
 -b, --bitrate \<n\>
 :   Target bitrate (for CBR)
 
