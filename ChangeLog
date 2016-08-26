@@ -1,6 +1,44 @@
+2016-08-26  nu774 <honeycomb77@gmail.com>
+
+  * update ChangeLog [HEAD -> master]
+
+  * bump [origin/master]
+
+  * Ticket #23: quit supporting MPEG-2 AOT
+
+2016-08-25  nu774 <honeycomb77@gmail.com>
+
+  * fix libfdkaac encoder version check for SBR_RATIO availability
+
+  * Use our SBR signaling implementation on old libfdkaac
+
+2015-10-10  nu774 <honeycomb77@gmail.com>
+
+  * improve MSVC project
+
+2015-09-21  nu774 <honeycomb77@gmail.com>
+
+  * fix indents
+
+  * update compat layer, mainly for MSVC14 issue
+
+2015-07-22  nu774 <honeycomb77@gmail.com>
+
+  * add platformtoolset in vcxproj
+
+  * fix build issue on MSVC14
+
+2015-06-12  nu774 <honeycomb77@gmail.com>
+
+  * remove an unused variable decl
+
+  * remove an unused variable decl
+
+  * m4af: move internal struct m4af_itmf_entry_t from header
+
 2015-02-14  nu774 <honeycomb77@gmail.com>
 
-  * update ChangeLog [HEAD]
+  * update ChangeLog
 
   * bump version [v0.6.2]
 
@@ -10,9 +48,9 @@
 
 2014-09-13  nu774 <honeycomb77@gmail.com>
 
-  * update ChangeLog [origin/master]
+  * update ChangeLog
 
-  * bump version
+  * bump version [v0.6.1]
 
 2014-09-12  nu774 <honeycomb77@gmail.com>
 
