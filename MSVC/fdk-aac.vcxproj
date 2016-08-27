@@ -71,7 +71,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\fdk-aac\libAACenc\src\aacenc.cpp" />
-    <ClCompile Include="..\fdk-aac\libAACenc\src\aacenc_hcr.cpp" />
     <ClCompile Include="..\fdk-aac\libAACenc\src\aacenc_lib.cpp" />
     <ClCompile Include="..\fdk-aac\libAACenc\src\aacenc_pns.cpp" />
     <ClCompile Include="..\fdk-aac\libAACenc\src\aacEnc_ram.cpp" />
@@ -148,7 +147,6 @@
   <ItemGroup>
     <ClInclude Include="..\fdk-aac\libAACenc\include\aacenc_lib.h" />
     <ClInclude Include="..\fdk-aac\libAACenc\src\aacenc.h" />
-    <ClInclude Include="..\fdk-aac\libAACenc\src\aacenc_hcr.h" />
     <ClInclude Include="..\fdk-aac\libAACenc\src\aacenc_pns.h" />
     <ClInclude Include="..\fdk-aac\libAACenc\src\aacEnc_ram.h" />
     <ClInclude Include="..\fdk-aac\libAACenc\src\aacEnc_rom.h" />
