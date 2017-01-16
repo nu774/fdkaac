@@ -23,7 +23,7 @@ fdkaac_SOURCES = \
 dist_man_MANS = man/fdkaac.1
 
 fdkaac_LDADD = \
-    @LIBICONV@ -lfdk-aac -lm
+    @LIBICONV@ @CHARSET_LIB@ -lfdk-aac -lm
 
 if FDK_PLATFORM_POSIX
     fdkaac_SOURCES += \

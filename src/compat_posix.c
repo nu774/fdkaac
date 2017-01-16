@@ -59,8 +59,8 @@ char *aacenc_to_utf8(const char *s)
 #include <errno.h>
 #include <iconv.h>
 
-#if HAVE_LOCALCHARSET_H
-#include <localcharset.h>
+#if HAVE_LIBCHARSET_H
+#include <libcharset.h>
 #elif HAVE_LANGINFO_H
 #include <langinfo.h>
 static const char *locale_charset(void)

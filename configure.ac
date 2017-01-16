@@ -13,7 +13,7 @@ AC_PROG_CC
 AM_PROG_CC_C_O
 
 AC_CHECK_HEADERS([sys/time.h])
-AC_CHECK_HEADERS([localcharset.h langinfo.h endian.h byteswap.h])
+AC_CHECK_HEADERS([libcharset.h langinfo.h endian.h byteswap.h])
 AC_CHECK_HEADERS([fdk-aac/aacenc_lib.h], ,
                  AC_MSG_ERROR([libfdk-aac is required]))
 
@@ -37,6 +37,12 @@ AC_CHECK_FUNCS([sigaction gettimeofday nl_langinfo _vscprintf fseeko64])
 AC_CHECK_FUNC(getopt_long)
 AM_CONDITIONAL([FDK_NO_GETOPT_LONG],[test "$ac_cv_func_getopt_long" != "yes"])
 AC_SEARCH_LIBS([aacEncOpen],[fdk-aac],[],[],[])
+
+CHARSET_LIB=
+AC_CHECK_LIB([iconv], [locale_charset],
+       [CHARSET_LIB=-liconv],
+       [AC_CHECK_LIB([charset], [locale_charset], [CHARSET_LIB=-lcharset])])
+AC_SUBST([CHARSET_LIB])
 
 AC_CANONICAL_HOST
 
