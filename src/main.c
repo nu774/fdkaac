@@ -503,6 +503,11 @@ int write_sample(FILE *ofp, m4af_ctx_t *m4af, aacenc_frame_t *frame)
     return 0;
 }
 
+static int do_smart_padding(int profile)
+{
+    return profile == 2 || profile == 5 || profile == 29;
+}
+
 static
 int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
            HANDLE_AACENCODER encoder, uint32_t frame_length, 
@@ -517,15 +522,12 @@ int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
     int frames_written = 0, encoded = 0;
     aacenc_progress_t progress = { 0 };
     const pcm_sample_description_t *fmt = pcm_get_format(reader);
+    const int is_padding = do_smart_padding(params->profile);
 
     ibuf = malloc(frame_length * fmt->bytes_per_frame);
     aacenc_progress_init(&progress, pcm_get_length(reader), fmt->sample_rate);
 
     for (;;) {
-        /*
-         * Since we delay the write, we cannot just exit loop when interrupted.
-         * Instead, we regard it as EOF.
-         */
         if (g_interrupted)
             nread = 0;
         if (nread > 0) {
@@ -548,7 +550,7 @@ int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
 
             remaining -= consumed;
             ip += consumed * fmt->channels_per_frame;
-            flip ^= 1;
+            if (is_padding) {
             /*
              * As we pad 1 frame at beginning and ending by our extrapolator,
              * we want to drop them.
@@ -557,25 +559,26 @@ int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
              * Since sbr_header is included in the first frame (in case of
              * SBR), we cannot discard first frame. So we pick second instead.
              */
-            ++encoded;
-            if (encoded == 1 || encoded == 3)
-                continue;
-
+                flip ^= 1;
+                ++encoded;
+                if (encoded == 1 || encoded == 3)
+                    continue;
+            }
             if (write_sample(params->output_fp, m4af, &obuf[flip]) < 0)
                 goto END;
             ++frames_written;
         } while (remaining > 0);
-        /*
-         * When interrupted, we haven't pulled out last extrapolated frames
-         * from the reader. Therefore, we have to write the final outcome.
-         */
-        if (g_interrupted) {
-            if (write_sample(params->output_fp, m4af, &obp[flip^1]) < 0)
-                goto END;
-            ++frames_written;
-        }
     }
 DONE:
+    /*
+     * When interrupted, we haven't pulled out last extrapolated frames
+     * from the reader. Therefore, we have to write the final outcome.
+     */
+    if (g_interrupted) {
+        if (write_sample(params->output_fp, m4af, &obp[flip^1]) < 0)
+            goto END;
+        ++frames_written;
+    }
     if (!params->silent)
         aacenc_progress_finish(&progress, pcm_get_position(reader));
     rc = frames_written;
@@ -755,8 +758,10 @@ pcm_reader_t *open_input(aacenc_param_ex_t *params)
     reader = pcm_open_native_converter(reader);
     if (reader && PCM_IS_FLOAT(pcm_get_format(reader)))
         reader = limiter_open(reader);
-    if (reader && (reader = pcm_open_sint16_converter(reader)) != 0)
-        reader = extrapolater_open(reader);
+    if (reader && (reader = pcm_open_sint16_converter(reader)) != 0) {
+        if (do_smart_padding(params->profile))
+            reader = extrapolater_open(reader);
+    }
     return reader;
 FAIL:
     return 0;
