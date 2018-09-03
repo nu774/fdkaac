@@ -289,7 +289,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
     params->afterburner = 1;
 
     aacenc_getmainargs(&argc, &argv);
-    while ((ch = getopt_long(argc, argv, "hp:b:m:w:a:Ls:f:CP:G:Io:SR",
+    while ((ch = getopt_long(argc, argv, "hp:b:m:w:a:L:s:f:CP:G:Io:SR",
                              long_options, 0)) != EOF) {
         switch (ch) {
         case 'h':
