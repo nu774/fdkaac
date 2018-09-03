@@ -846,29 +846,22 @@ int main(int argc, char **argv)
         m4af_set_priming_mode(m4af, params.gapless_mode + 1);
         m4af_begin_write(m4af);
     }
-    if (scale_shift && (aacinfo.encoderDelay & 1)) {
-        /*
-         * Since odd delay cannot be exactly expressed in downsampled scale,
-         * we push one zero frame to the encoder here, to make delay even
-         */
-        int16_t zero[8] = { 0 };
-        aacenc_frame_t frame = { 0 };
-        aac_encode_frame(encoder, sample_format, zero, 1, &frame);
-        free(frame.data);
-    }
     frame_count = encode(&params, reader, encoder, aacinfo.frameLength, m4af);
     if (frame_count < 0)
         goto END;
     if (m4af) {
-        uint32_t delay = aacinfo.encoderDelay;
         uint32_t padding;
+#if AACENCODER_LIB_VL0 < 4
+        uint32_t delay = aacinfo.encoderDelay;
+        if (sbr_mode && params.profile != AOT_ER_AAC_ELD
+            && !params.include_sbr_delay)
+            delay -= 481 << scale_shift;
+#else
+        uint32_t delay = params.include_sbr_delay ? aacinfo.nDelay
+                                                  : aacinfo.nDelayCore;
+#endif
         int64_t frames_read = pcm_get_position(reader);
 
-        if (sbr_mode && params.profile != AOT_ER_AAC_ELD &&
-            !params.include_sbr_delay)
-            delay -= 481 << scale_shift;
-        if (scale_shift && (delay & 1))
-            ++delay;
         padding = frame_count * aacinfo.frameLength - frames_read - delay;
         m4af_set_priming(m4af, 0, delay >> scale_shift, padding >> scale_shift);
         if (finalize_m4a(m4af, &params, encoder) < 0)
