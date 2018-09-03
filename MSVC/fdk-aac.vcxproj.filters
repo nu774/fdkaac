@@ -168,9 +168,6 @@
     <ClCompile Include="..\fdk-aac\libMpegTPEnc\src\tpenc_lib.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\fdk-aac\libPCMutils\src\pcmutils_lib.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\fdk-aac\libSBRenc\src\bit_sbr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -216,22 +213,73 @@
     <ClCompile Include="..\fdk-aac\libSBRenc\src\sbr_misc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\fdk-aac\libSBRenc\src\sbr_ram.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\fdk-aac\libSBRenc\src\sbr_rom.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\fdk-aac\libSBRenc\src\ton_corr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\fdk-aac\libSBRenc\src\tran_det.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\fdk-aac\libSYS\src\conv_string.cpp">
+    <ClCompile Include="..\fdk-aac\libSYS\src\genericStds.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\fdk-aac\libSYS\src\genericStds.cpp">
+    <ClCompile Include="..\fdk-aac\libPCMutils\src\pcm_utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSBRenc\src\sbrenc_ram.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSBRenc\src\sbrenc_rom.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_bitstream.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_delay.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_dmx_tdom_enh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_filter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_framewindowing.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_huff_tab.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_lib.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_nlc_enc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_onsetdetect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_paramextract.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_staticgain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_tree.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_vectorfunctions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libAACenc\src\mps_main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libSYS\src\syslib_channelMapDescr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libFDK\src\FDK_matrixCalloc.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\fdk-aac\libFDK\src\FDK_lpc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

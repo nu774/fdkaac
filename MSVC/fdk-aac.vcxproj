@@ -53,7 +53,7 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <PreprocessorDefinitions>WIN32;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>../fdk-aac/libaacenc/include;../fdk-aac/libFDK/include;../fdk-aac/libMpegTPEnc/include;../fdk-aac/libPCMutils/include;../fdk-aac/libSBRenc/include;../fdk-aac/libSYS/include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../fdk-aac/libaacenc/include;../fdk-aac/libFDK/include;../fdk-aac/libMpegTPEnc/include;../fdk-aac/libPCMutils/include;../fdk-aac/libSACenc/include;../fdk-aac/libSBRenc/include;../fdk-aac/libSYS/include</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
@@ -93,6 +93,7 @@
     <ClCompile Include="..\fdk-aac\libAACenc\src\line_pe.cpp" />
     <ClCompile Include="..\fdk-aac\libAACenc\src\metadata_compressor.cpp" />
     <ClCompile Include="..\fdk-aac\libAACenc\src\metadata_main.cpp" />
+    <ClCompile Include="..\fdk-aac\libAACenc\src\mps_main.cpp" />
     <ClCompile Include="..\fdk-aac\libAACenc\src\ms_stereo.cpp" />
     <ClCompile Include="..\fdk-aac\libAACenc\src\noisedet.cpp" />
     <ClCompile Include="..\fdk-aac\libAACenc\src\pnsparam.cpp" />
@@ -111,6 +112,8 @@
     <ClCompile Include="..\fdk-aac\libFDK\src\FDK_core.cpp" />
     <ClCompile Include="..\fdk-aac\libFDK\src\FDK_crc.cpp" />
     <ClCompile Include="..\fdk-aac\libFDK\src\FDK_hybrid.cpp" />
+    <ClCompile Include="..\fdk-aac\libFDK\src\FDK_lpc.cpp" />
+    <ClCompile Include="..\fdk-aac\libFDK\src\FDK_matrixCalloc.cpp" />
     <ClCompile Include="..\fdk-aac\libFDK\src\FDK_tools_rom.cpp" />
     <ClCompile Include="..\fdk-aac\libFDK\src\FDK_trigFcts.cpp" />
     <ClCompile Include="..\fdk-aac\libFDK\src\fft.cpp" />
@@ -124,7 +127,20 @@
     <ClCompile Include="..\fdk-aac\libMpegTPEnc\src\tpenc_asc.cpp" />
     <ClCompile Include="..\fdk-aac\libMpegTPEnc\src\tpenc_latm.cpp" />
     <ClCompile Include="..\fdk-aac\libMpegTPEnc\src\tpenc_lib.cpp" />
-    <ClCompile Include="..\fdk-aac\libPCMutils\src\pcmutils_lib.cpp" />
+    <ClCompile Include="..\fdk-aac\libPCMutils\src\pcm_utils.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_bitstream.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_delay.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_dmx_tdom_enh.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_filter.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_framewindowing.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_huff_tab.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_lib.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_nlc_enc.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_onsetdetect.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_paramextract.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_staticgain.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_tree.cpp" />
+    <ClCompile Include="..\fdk-aac\libSACenc\src\sacenc_vectorfunctions.cpp" />
     <ClCompile Include="..\fdk-aac\libSBRenc\src\bit_sbr.cpp" />
     <ClCompile Include="..\fdk-aac\libSBRenc\src\code_env.cpp" />
     <ClCompile Include="..\fdk-aac\libSBRenc\src\env_bit.cpp" />
@@ -138,14 +154,14 @@
     <ClCompile Include="..\fdk-aac\libSBRenc\src\ps_main.cpp" />
     <ClCompile Include="..\fdk-aac\libSBRenc\src\resampler.cpp" />
     <ClCompile Include="..\fdk-aac\libSBRenc\src\sbrenc_freq_sca.cpp" />
+    <ClCompile Include="..\fdk-aac\libSBRenc\src\sbrenc_ram.cpp" />
+    <ClCompile Include="..\fdk-aac\libSBRenc\src\sbrenc_rom.cpp" />
     <ClCompile Include="..\fdk-aac\libSBRenc\src\sbr_encoder.cpp" />
     <ClCompile Include="..\fdk-aac\libSBRenc\src\sbr_misc.cpp" />
-    <ClCompile Include="..\fdk-aac\libSBRenc\src\sbr_ram.cpp" />
-    <ClCompile Include="..\fdk-aac\libSBRenc\src\sbr_rom.cpp" />
     <ClCompile Include="..\fdk-aac\libSBRenc\src\ton_corr.cpp" />
     <ClCompile Include="..\fdk-aac\libSBRenc\src\tran_det.cpp" />
-    <ClCompile Include="..\fdk-aac\libSYS\src\conv_string.cpp" />
     <ClCompile Include="..\fdk-aac\libSYS\src\genericStds.cpp" />
+    <ClCompile Include="..\fdk-aac\libSYS\src\syslib_channelMapDescr.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\fdk-aac\libAACenc\include\aacenc_lib.h" />
