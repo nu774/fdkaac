@@ -75,7 +75,7 @@ typedef struct m4af_ctx_t m4af_ctx_t;
 
 
 m4af_ctx_t *m4af_create(uint32_t codec, uint32_t timescale,
-                        m4af_io_callbacks_t *io, void *io_cookie);
+                        m4af_io_callbacks_t *io, void *io_cookie, int no_timestamp);
 
 int m4af_begin_write(m4af_ctx_t *ctx);
 

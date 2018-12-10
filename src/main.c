@@ -159,6 +159,7 @@ PROGNAME " %s\n"
 " -I, --ignorelength            Ignore length of WAV header\n"
 " -S, --silent                  Don't print progress messages\n"
 " --moov-before-mdat            Place moov box before mdat box on m4a output\n"
+" --no-timestamp                Don't inject timestamp in the file\n"
 "\n"
 "Options for raw (headerless) input:\n"
 " -R, --raw                     Treat input as raw (by default WAV is\n"
@@ -221,6 +222,8 @@ typedef struct aacenc_param_ex_t {
     unsigned raw_rate;
     const char *raw_format;
 
+    int no_timestamp;
+
     aacenc_tag_store_t tags;
     aacenc_tag_store_t source_tags;
     aacenc_translate_generic_text_tag_ctx_t source_tag_ctx;
@@ -244,7 +247,7 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
 #define OPT_LONG_TAG             M4AF_FOURCC('l','t','a','g')
 #define OPT_TAG_FROM_JSON        M4AF_FOURCC('t','f','j','s')
 
-    static struct option long_options[] = {
+    static const struct option long_options[] = {
         { "help",             no_argument,       0, 'h' },
         { "profile",          required_argument, 0, 'p' },
         { "bitrate",          required_argument, 0, 'b' },
@@ -284,6 +287,8 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
         { "tag-from-file",    required_argument, 0, OPT_SHORT_TAG_FILE     },
         { "long-tag",         required_argument, 0, OPT_LONG_TAG           },
         { "tag-from-json",    required_argument, 0, OPT_TAG_FROM_JSON      },
+
+        { "no-timestamp",     no_argument,       0, '#' },
         { 0,                  0,                 0, 0                      },
     };
     params->afterburner = 1;
@@ -455,6 +460,9 @@ int parse_options(int argc, char **argv, aacenc_param_ex_t *params)
             break;
         case OPT_TAG_FROM_JSON:
             params->json_filename = optarg;
+            break;
+        case '#':
+            params->no_timestamp = 1;
             break;
         default:
             return usage(), -1;
@@ -833,7 +841,7 @@ int main(int argc, char **argv)
         unsigned framelen = aacinfo.frameLength;
         scale = sample_format->sample_rate >> scale_shift;
         if ((m4af = m4af_create(M4AF_CODEC_MP4A, scale, &m4af_io,
-                                params.output_fp)) < 0)
+                                params.output_fp, params.no_timestamp)) < 0)
             goto END;
         m4af_set_num_channels(m4af, 0, sample_format->channels_per_frame);
         m4af_set_fixed_frame_duration(m4af, 0, framelen >> scale_shift);

@@ -223,7 +223,7 @@ void m4af_write32_at(m4af_ctx_t *ctx, int64_t pos, uint32_t value)
 }
 
 m4af_ctx_t *m4af_create(uint32_t codec, uint32_t timescale,
-                        m4af_io_callbacks_t *io, void *io_cookie)
+                        m4af_io_callbacks_t *io, void *io_cookie, int no_timestamp)
 {
     m4af_ctx_t *ctx;
     int64_t timestamp;
@@ -237,7 +237,7 @@ m4af_ctx_t *m4af_create(uint32_t codec, uint32_t timescale,
     memcpy(&ctx->io, io, sizeof(m4af_io_callbacks_t));
     ctx->io_cookie = io_cookie;
     ctx->timescale = timescale;
-    timestamp = m4af_timestamp();
+    timestamp = no_timestamp ? 0 : m4af_timestamp();
     ctx->creation_time = timestamp;
     ctx->modification_time = timestamp;
     ctx->num_tracks = 1;
