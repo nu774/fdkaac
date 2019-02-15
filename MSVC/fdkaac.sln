@@ -1,9 +1,8 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fdkaac", "fdkaac.vcxproj", "{E62D32CF-E308-40BD-9FF0-8266C6CAA9AA}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fdk-aac", "fdk-aac.vcxproj", "{D7D4B982-8B16-4A10-8B1C-9527BD789709}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libfdk-aac", "libfdk-aac.vcxproj", "{D7D4B982-8B16-4A10-8B1C-9527BD789709}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -22,12 +22,12 @@
     <ProjectGuid>{E62D32CF-E308-40BD-9FF0-8266C6CAA9AA}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>fdkaac</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <PropertyGroup>
-    <PlatformToolset Condition="'$(PlatformToolset)' == '' and '$(MSBuildToolsVersion)' == '15.0'">v141_xp</PlatformToolset>
-    <PlatformToolset Condition="'$(PlatformToolset)' == '' and '$(MSBuildToolsVersion)' == '14.0'">v140_xp</PlatformToolset>
+    <PlatformToolset Condition="'$(PlatformToolset)' == '' and '$(MSBuildToolsVersion)' == '15.0'">v141</PlatformToolset>
+    <PlatformToolset Condition="'$(PlatformToolset)' == '' and '$(MSBuildToolsVersion)' == '14.0'">v140</PlatformToolset>
     <PlatformToolset Condition="'$(PlatformToolset)' == '' and '$(MSBuildToolsVersion)' == '12.0'">v120_xp</PlatformToolset>
-    <PlatformToolset Condition="'$(PlatformToolset)' == '' and '$(MSBuildToolsVersion)' == '11.0'">v110_xp</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -39,6 +39,12 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
     <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="PropertySheets">
@@ -55,27 +61,63 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PreBuildEvent>
-      <Command>copy ..\fdk-aac\libAACdec\include\aacdecoder_lib.h include\fdk-aac\
-copy ..\fdk-aac\libAACenc\include\aacenc_lib.h include\fdk-aac\
-copy ..\fdk-aac\libSYS\include\FDK_Audio.h include\fdk-aac\
-copy ..\fdk-aac\libSYS\include\genericStds.h include\fdk-aac\
-copy ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\
-copy ..\fdk-aac\libSYS\include\syslib_channelMapDescr.h include\fdk-aac\
-      </Command>
+      <Command>xcopy /D ..\fdk-aac\libAACdec\include\aacdecoder_lib.h include\fdk-aac\
+xcopy /D ..\fdk-aac\libAACenc\include\aacenc_lib.h include\fdk-aac\
+xcopy /D ..\fdk-aac\libSYS\include\FDK_Audio.h include\fdk-aac\
+xcopy /D ..\fdk-aac\libSYS\include\genericStds.h include\fdk-aac\
+xcopy /D ..\fdk-aac\libSYS\include\machine_type.h include\fdk-aac\
+xcopy /D ..\fdk-aac\libSYS\include\syslib_channelMapDescr.h include\fdk-aac\
+xcopy /D ..\fdk-aac\libFDK\include\FDK_archdef.h include\fdk-aac\</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
+      <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</MultiProcessorCompilation>
+      <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</MultiProcessorCompilation>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)libfdk-aac.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </AdditionalLibraryDirectories>
+    </Link>
+    <Link>
+      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(OutDir)libfdk-aac.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
+      <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</MultiProcessorCompilation>
+      <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|x64'">MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</BufferSecurityCheck>
+      <FloatingPointModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Fast</FloatingPointModel>
+      <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</WholeProgramOptimization>
+      <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</BufferSecurityCheck>
+      <EnableEnhancedInstructionSet Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <FloatingPointModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Fast</FloatingPointModel>
+      <MultiProcessorCompilation Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</MultiProcessorCompilation>
+      <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExceptionHandling>
+      <IntrinsicFunctions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</IntrinsicFunctions>
+      <ExceptionHandling Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExceptionHandling>
+      <LanguageStandard Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">stdcpp14</LanguageStandard>
+      <EnableParallelCodeGeneration Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</EnableParallelCodeGeneration>
+      <RuntimeTypeInfo Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</RuntimeTypeInfo>
+      <OmitFramePointers Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</OmitFramePointers>
+      <RuntimeTypeInfo Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</RuntimeTypeInfo>
+      <EnableParallelCodeGeneration Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</EnableParallelCodeGeneration>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/Qvec-report:1 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)libfdk-aac.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </AdditionalLibraryDirectories>
+      <LinkTimeCodeGeneration Condition="'$(Configuration)|$(Platform)'=='Release|x64'">UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <AdditionalDependencies Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(OutDir)libfdk-aac.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <LinkTimeCodeGeneration Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -90,7 +132,6 @@ copy ..\fdk-aac\libSYS\include\syslib_channelMapDescr.h include\fdk-aac\
     <ClCompile Include="..\src\main.c" />
     <ClCompile Include="..\src\metadata.c" />
     <ClCompile Include="..\src\parson.c" />
-    <ClCompile Include="..\src\pcm_float_converter.c" />
     <ClCompile Include="..\src\pcm_native_converter.c" />
     <ClCompile Include="..\src\pcm_readhelper.c" />
     <ClCompile Include="..\src\pcm_sint16_converter.c" />
@@ -112,7 +153,7 @@ copy ..\fdk-aac\libSYS\include\syslib_channelMapDescr.h include\fdk-aac\
     <ClInclude Include="..\src\progress.h" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="fdk-aac.vcxproj">
+    <ProjectReference Include="libfdk-aac.vcxproj">
       <Project>{d7d4b982-8b16-4a10-8b1c-9527bd789709}</Project>
     </ProjectReference>
   </ItemGroup>
