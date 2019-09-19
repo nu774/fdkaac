@@ -50,7 +50,7 @@ int aacenc_init(HANDLE_AACENCODER *encoder, const aacenc_param_t *params,
 
 int aac_encode_frame(HANDLE_AACENCODER encoder,
                      const pcm_sample_description_t *format,
-                     const int16_t *input, unsigned iframes,
+                     const INT_PCM *input, unsigned iframes,
                      aacenc_frame_t *output);
 
 #endif

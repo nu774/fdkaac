@@ -247,7 +247,7 @@ FAIL:
 
 int aac_encode_frame(HANDLE_AACENCODER encoder,
                      const pcm_sample_description_t *format,
-                     const int16_t *input, unsigned iframes,
+                     const INT_PCM *input, unsigned iframes,
                      aacenc_frame_t *output)
 {
     uint32_t ilen = iframes * format->channels_per_frame;
@@ -258,9 +258,9 @@ int aac_encode_frame(HANDLE_AACENCODER encoder,
     void *obufs[1];
     INT ibuf_ids[] = { IN_AUDIO_DATA };
     INT obuf_ids[] = { OUT_BITSTREAM_DATA };
-    INT ibuf_sizes[] = { ilen * sizeof(int16_t) };
+    INT ibuf_sizes[] = { ilen * sizeof(INT_PCM) };
     INT obuf_sizes[1];
-    INT ibuf_el_sizes[] = { sizeof(int16_t) };
+    INT ibuf_el_sizes[] = { sizeof(INT_PCM) };
     INT obuf_el_sizes[] = { 1 };
     AACENC_ERROR err;
     unsigned channel_mode, obytes;

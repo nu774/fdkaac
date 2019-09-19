@@ -10,6 +10,8 @@
 #if HAVE_STDINT_H
 #  include <stdint.h>
 #endif
+#include <assert.h>
+#include <fdk-aac/aacenc_lib.h>
 #include "pcm_reader.h"
 
 typedef struct pcm_sint16_converter_t {
@@ -57,12 +59,18 @@ static int read_frames(pcm_reader_t *reader, void *buffer, unsigned nframes)
     count = nframes * sfmt->channels_per_frame;
     if (PCM_IS_FLOAT(sfmt)) {
         float   *ip = self->pivot;
-        int16_t *op = buffer;
+        INT_PCM *op = buffer;
+#if SAMPLE_BITS == 16
         for (i = 0; i < count; ++i)
-            op[i] = pcm_clip(ip[i] * 32768.0, -32768.0, 32767.0);
+            op[i] = (int16_t)pcm_clip(ip[i] * 32768.0, -32768.0, 32767.0);
+#else
+        for (i = 0; i < count; ++i)
+            op[i] = (int32_t)pcm_clip(ip[i] * 2147483648.0, -2147483648.0, 2147483647.0);
+#endif
     } else {
         int32_t *ip = self->pivot;
-        int16_t *op = buffer;
+        INT_PCM *op = buffer;
+#if SAMPLE_BITS == 16
         if (sfmt->bits_per_channel <= 16) {
             for (i = 0; i < count; ++i)
                 op[i] = ip[i] >> 16;
@@ -72,6 +80,10 @@ static int read_frames(pcm_reader_t *reader, void *buffer, unsigned nframes)
                 op[i] = (n == 0x8000) ? 0x7fff : n;
             }
         }
+#else
+        for (i = 0; i < count; ++i)
+            op[i] = ip[i];
+#endif
     }
     return nframes;
 }
@@ -94,14 +106,16 @@ pcm_reader_t *pcm_open_sint16_converter(pcm_reader_t *reader)
     pcm_sint16_converter_t *self = 0;
     pcm_sample_description_t *fmt;
 
+	assert((SAMPLE_BITS>>3) == sizeof(INT_PCM));
+
     if ((self = calloc(1, sizeof(pcm_sint16_converter_t))) == 0)
         return 0;
     self->src = reader;
     self->vtbl = &my_vtable;
     memcpy(&self->format, pcm_get_format(reader), sizeof(self->format));
     fmt = &self->format;
-    fmt->bits_per_channel = 16;
+    fmt->bits_per_channel = SAMPLE_BITS;
     fmt->sample_type = PCM_TYPE_SINT;
-    fmt->bytes_per_frame = 2 * fmt->channels_per_frame;
+    fmt->bytes_per_frame = sizeof(INT_PCM) * fmt->channels_per_frame;
     return (pcm_reader_t *)self;
 }

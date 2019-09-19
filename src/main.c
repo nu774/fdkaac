@@ -521,7 +521,7 @@ int encode(aacenc_param_ex_t *params, pcm_reader_t *reader,
            HANDLE_AACENCODER encoder, uint32_t frame_length, 
            m4af_ctx_t *m4af)
 {
-    int16_t *ibuf = 0, *ip;
+    INT_PCM *ibuf = 0, *ip;
     aacenc_frame_t obuf[2] = {{ 0 }}, *obp;
     unsigned flip = 0;
     int nread = 1;
