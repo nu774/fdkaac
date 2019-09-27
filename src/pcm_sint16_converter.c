@@ -106,7 +106,7 @@ pcm_reader_t *pcm_open_sint16_converter(pcm_reader_t *reader)
     pcm_sint16_converter_t *self = 0;
     pcm_sample_description_t *fmt;
 
-	assert((SAMPLE_BITS>>3) == sizeof(INT_PCM));
+    assert((SAMPLE_BITS>>3) == sizeof(INT_PCM));
 
     if ((self = calloc(1, sizeof(pcm_sint16_converter_t))) == 0)
         return 0;
