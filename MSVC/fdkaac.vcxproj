@@ -55,6 +55,9 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <Manifest>
+      <AdditionalManifestFiles>..\fdkaac.manifest %(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
     <PreBuildEvent>
       <Command>copy ..\fdk-aac\libAACdec\include\aacdecoder_lib.h include\fdk-aac\
 copy ..\fdk-aac\libAACenc\include\aacenc_lib.h include\fdk-aac\

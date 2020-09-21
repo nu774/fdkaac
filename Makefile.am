@@ -25,6 +25,9 @@ dist_man_MANS = man/fdkaac.1
 fdkaac_LDADD = \
     @LIBICONV@ @CHARSET_LIB@ -lfdk-aac -lm
 
+.rc.o:
+	$(RC) $< -o $@
+
 if FDK_PLATFORM_POSIX
     fdkaac_SOURCES += \
 	src/compat_posix.c
@@ -33,6 +36,7 @@ endif
 if FDK_PLATFORM_WIN32
     fdkaac_SOURCES += \
 	src/compat_win32.c
+    fdkaac_SOURCES += fdkaac.rc
 endif
 
 if FDK_NO_GETOPT_LONG

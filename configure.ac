@@ -11,6 +11,7 @@ AM_INIT_AUTOMAKE
 
 AC_PROG_CC
 AM_PROG_CC_C_O
+AC_CHECK_TOOL(RC, windres,)
 
 AC_CHECK_HEADERS([sys/time.h])
 AC_CHECK_HEADERS([libcharset.h langinfo.h endian.h byteswap.h])
