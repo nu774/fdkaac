@@ -1103,8 +1103,10 @@ void m4af_write_tkhd_box(m4af_ctx_t *ctx, uint32_t track_idx)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     int64_t pos = m4af_tell(ctx);
-    int64_t duration =
-        (double)track->duration / track->timescale * ctx->timescale + .5;
+    int64_t duration = track->duration;
+    if (ctx->priming_mode & M4AF_PRIMING_MODE_EDTS)
+        duration -= (track->encoder_delay + track->padding);
+    duration = (double)duration / track->timescale * ctx->timescale + .5;
     uint8_t version = (track->creation_time > UINT32_MAX ||
                        track->modification_time > UINT32_MAX ||
                        duration > UINT32_MAX);
@@ -1169,6 +1171,8 @@ int64_t m4af_movie_duration(m4af_ctx_t *ctx)
     unsigned i;
     for (i = 0; i < ctx->num_tracks; ++i) {
         double x = ctx->track[i].duration;
+        if (ctx->priming_mode & M4AF_PRIMING_MODE_EDTS)
+            x -= (ctx->track[i].encoder_delay + ctx->track[i].padding);
         int64_t duration = x / ctx->track[i].timescale * ctx->timescale + .5;
         if (duration > movie_duration)
             movie_duration = duration;
