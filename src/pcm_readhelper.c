@@ -228,7 +228,7 @@ int apple_chan_chunk(pcm_io_context_t *io, uint32_t chunk_size,
         TRY_IO(pcm_skip(io, chunk_size - 12));
         fmt->channel_mask = mChannelBitmap;
         for (i = 0; i < nchannels; ++i)
-            mapping[i] = i;
+            mapping[] = i;
         return 0;
     case kAudioChannelLayoutTag_UseChannelDescriptions:
         ENSURE(mNumberChannelDescriptions == nchannels);
