@@ -211,9 +211,10 @@ int apple_chan_chunk(pcm_io_context_t *io, uint32_t chunk_size,
      * Although FDK encoder supports upto 5.1ch, we handle upto
      * 8 channels here.
      */
-    uint32_t i, mChannelLayoutTag, mChannelBitmap, mNumberChannelDescriptions;
+    uint32_t mChannelLayoutTag, mChannelBitmap, mNumberChannelDescriptions;
     uint32_t mask = 0;
     const uint32_t nchannels = fmt->channels_per_frame;
+    uint32_t i[nchannels];
     uint8_t channels[9] = { 0 };
     uint8_t *index[8] = { 0 };
     const char *layout = 0;
@@ -228,7 +229,7 @@ int apple_chan_chunk(pcm_io_context_t *io, uint32_t chunk_size,
         TRY_IO(pcm_skip(io, chunk_size - 12));
         fmt->channel_mask = mChannelBitmap;
         for (i = 0; i < nchannels; ++i)
-            mapping[] = i;
+            mapping[i] = i;
         return 0;
     case kAudioChannelLayoutTag_UseChannelDescriptions:
         ENSURE(mNumberChannelDescriptions == nchannels);
