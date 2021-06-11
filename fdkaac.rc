@@ -13,8 +13,8 @@ FILEVERSION VER_VERSION
 PRODUCTVERSION VER_VERSION
 FILEOS 0x4
 //VOS_NT 0x4 File was designed for 32-bit Windows.
-FILETYPE 0x2
-//VFT_DLL 0x2 File contains a dynamic-link library (DLL).
+FILETYPE 0x1
+//VFT_APP 0x1 File contains an application.
 
 {
 BLOCK "StringFileInfo"
