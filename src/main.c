@@ -201,7 +201,7 @@ PROGNAME " %s\n"
 "                              dotted notation.\n"
 "                              Example:\n"
 "                                --tag-from-json /path/to/json?format.tags\n"
-    , fdkaac_version);
+    , VER_VERSION_STR);
 }
 
 typedef struct aacenc_param_ex_t {
@@ -605,7 +605,7 @@ void put_tool_tag(m4af_ctx_t *m4af, const aacenc_param_ex_t *params,
     char *p = tool_info;
     LIB_INFO lib_info;
 
-    p += sprintf(p, PROGNAME " %s, ", fdkaac_version);
+    p += sprintf(p, PROGNAME " %s, ", VER_VERSION_STR);
     aacenc_get_lib_info(&lib_info);
     p += sprintf(p, "libfdk-aac %s, ", lib_info.versionStr);
     if (params->bitrate_mode)
