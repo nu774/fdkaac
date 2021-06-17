@@ -17,12 +17,12 @@ BLOCK "StringFileInfo"
 {
 	BLOCK "040904E4"
 	{
-		VALUE "FileDescription", "Command line frontend for libfdk-aac encoder"
+		VALUE "FileDescription", "Command line frontend for libfdk-aac encoder\0"
 		VALUE "FileVersion", VER_VERSION_STR
 		VALUE "LegalCopyright", VER_LEGALCOPYRIGHT_STR
-		VALUE "OriginalFilename", "fdkaac.exe"
+		VALUE "OriginalFilename", "fdkaac.exe\0"
 		VALUE "ProductVersion", VER_VERSION_STR
-		VALUE "ProductName", "FDKAAC"
+		VALUE "ProductName", "FDKAAC\0"
 	}
 }
 
