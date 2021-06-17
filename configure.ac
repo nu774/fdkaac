@@ -1,6 +1,6 @@
-m4_define([VERSION_H],m4_esyscmd([cat version.h]))
+m4_define([VERSION_STR],m4_esyscmd([grep VER_VERSION_STR version.h]))
 changequote({{,}})dnl
-m4_define({{XX_VERSION}},m4_bregexp(VERSION_H,{{^const.*"\(.+\)";}},{{\1}}))
+m4_define({{XX_VERSION}},m4_bregexp(VERSION_STR,{{.*VER_VERSION_STR "\(.+\).0".*}},{{\1}}))
 changequote([,])dnl
 
 AC_INIT([fdkaac], [XX_VERSION], [honeycomb77@gmail.com])

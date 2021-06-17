@@ -1,3 +1,33 @@
 #include <winresrc.h>
+#include "version.h"
 
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "fdkaac.manifest"
+
+1 VERSIONINFO
+//Version-information resource identifier. This value must be 1.
+FILEVERSION VER_VERSION
+PRODUCTVERSION VER_VERSION
+FILEOS 0x4
+//VOS_NT 0x4 File was designed for 32-bit Windows.
+FILETYPE 0x1
+//VFT_APP 0x1 File contains an application.
+
+{
+BLOCK "StringFileInfo"
+{
+	BLOCK "040904E4"
+	{
+		VALUE "FileDescription", "Command line frontend for libfdk-aac encoder\0"
+		VALUE "FileVersion", VER_VERSION_STR
+		VALUE "LegalCopyright", VER_LEGALCOPYRIGHT_STR
+		VALUE "OriginalFilename", "fdkaac.exe\0"
+		VALUE "ProductVersion", VER_VERSION_STR
+		VALUE "ProductName", "FDKAAC\0"
+	}
+}
+
+BLOCK "VarFileInfo"
+{
+	VALUE "Translation", 0x0409, 1252
+}
+}
