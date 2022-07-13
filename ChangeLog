@@ -1,8 +1,76 @@
+2022-07-13  nu774 <honeycomb77@gmail.com>
+
+  * bump [HEAD -> master]
+
+  * wav/caf parser: ensure fmt/desc chunk
+
+2021-11-15  nu774 <honeycomb77@gmail.com>
+
+  * vcxproj: support Visual Studio 2022 [origin/master]
+
+2021-04-23  nu774 <honeycomb77@gmail.com>
+
+  * bump [v1.0.2]
+
+  * m4af: fix mvhd/tkhd duration
+
+2020-09-21  nu774 <honeycomb77@gmail.com>
+
+  * bump [v1.0.1]
+
+  * add Windows 10 long pathname manifest
+
+2019-09-27  nu774 <honeycomb77@gmail.com>
+
+  * fix indent
+
+2019-09-19  Dima <yudind@gmail.com>
+
+  * process 32-bit input if possible (i.e. respect aac:INT_PCM type)
+
+2019-04-04  nu774 <honeycomb77@gmail.com>
+
+  * vcxproj: support visual studio 2019
+
+2018-12-10  tico-tico <sergei.ivn@gmx.com>
+
+  * don't inject timestamp
+
+2018-09-04  nu774 <honeycomb77@gmail.com>
+
+  * bump version 1.0.0 [1.0.0]
+
+  * Fix LD/ELD issue: priming samples are too short to be discarded
+
+2018-09-03  nu774 <honeycomb77@gmail.com>
+
+  * FDKv2 API change: encoderDelay -> nDelay/nDelayCore
+
+  * update MSVC projects for FDKv2
+
+  * use different IntDir for fdk-aac build
+
+  * remove zombies from fdk-aac.vcxproj.filters
+
+  * fix: -L option was not working (resulted in segfault)
+
+2017-03-16  nu774 <honeycomb77@gmail.com>
+
+  * MSVC projects: update for VS2017
+
+2017-01-16  nu774 <honeycomb77@gmail.com>
+
+  * address issue#26
+
+2016-08-27  nu774 <honeycomb77@gmail.com>
+
+  * remove aacenc_hcr.* from MSVC project
+
 2016-08-26  nu774 <honeycomb77@gmail.com>
 
-  * update ChangeLog [HEAD -> master]
+  * update ChangeLog
 
-  * bump [origin/master]
+  * bump [v0.6.3]
 
   * Ticket #23: quit supporting MPEG-2 AOT
 

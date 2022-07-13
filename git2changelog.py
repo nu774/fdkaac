@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (C) 2013 nu774
 # For conditions of distribution and use, see copyright notice in COPYING
@@ -39,6 +39,6 @@ with Popen(GITLOG_CMD, shell=False, stdout=PIPE).stdout as pipe:
     commits = parse_gitlog(pipe)
     commits_by_date_author = groupby(commits, key=lambda x: (x.date, x.author))
     for (date, author), commits in commits_by_date_author:
-        output(u'{0}  {1}\n\n'.format(date, author).encode('utf-8'))
+        output(f'{date}  {author}\n\n')
         for c in commits:
-            output(u'  * {0}{1}\n\n'.format(c.subject, c.ref).encode('utf-8'))
+            output(f'  * {c.subject}{c.ref}\n\n')
