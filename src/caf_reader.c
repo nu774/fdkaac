@@ -75,8 +75,10 @@ int caf_desc(caf_reader_t *reader, int64_t chunk_size)
     ENSURE(mFormatID == M4AF_FOURCC('l','p','c','m'));
     ENSURE(mSampleRate && mBytesPerPacket &&
            mChannelsPerFrame >= 1 && mChannelsPerFrame <= 8 &&
-           mBitsPerChannel && mFramesPerPacket == 1 &&
+           mBitsPerChannel > 0 && mBitsPerChannel < 256 &&
+           mFramesPerPacket == 1 &&
            mBytesPerPacket % mChannelsPerFrame == 0 &&
+           mBytesPerPacket < 256 &&
            mBytesPerPacket >= mChannelsPerFrame * ((mBitsPerChannel + 7) / 8));
 
     desc->sample_rate        = mSampleRate;

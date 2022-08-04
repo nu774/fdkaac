@@ -113,8 +113,10 @@ int wav_fmt(wav_reader_t *reader, uint32_t size)
     wValidBitsPerSample = wBitsPerSample;
 
     ENSURE(wFormatTag == 1 || wFormatTag == 3 || wFormatTag == 0xfffe);
-    ENSURE(nChannels && nSamplesPerSec && nAvgBytesPerSec &&
-           nBlockAlign && wBitsPerSample && !(wBitsPerSample & 7) &&
+    ENSURE(nChannels > 0 && nChannels <= 8 &&
+           nSamplesPerSec && nAvgBytesPerSec &&
+           nBlockAlign && nBlockAlign < 256 &&
+           wBitsPerSample && wBitsPerSample < 256 && !(wBitsPerSample & 7) &&
            nBlockAlign == nChannels * wBitsPerSample / 8);
 
     if (wFormatTag == 3)
