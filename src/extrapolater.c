@@ -144,17 +144,22 @@ static int process1(extrapolater_t *self, void *buffer, unsigned nframes)
     assert(bp->count <= nframes);
     memcpy(buffer, bp->data, bp->count * sfmt->bytes_per_frame); 
     if (!fetch(self, nframes)) {
+        // got EOF
         buffer_t *bbp = &self->buffer[self->nbuffer];
         if (bp->count < 2 * LPC_ORDER) {
+            // final frame is too short, so we join with the pre-final frame
             size_t total = bp->count + bbp->count;
             if (bbp->count &&
                 realloc_buffer(bbp, total * sfmt->bytes_per_frame) == 0 &&
                 realloc_buffer(bp, total * sfmt->bytes_per_frame) == 0)
             {
                 memcpy(bbp->data + bbp->count * sfmt->channels_per_frame,
-                       bp->data, bp->count * sfmt->bytes_per_frame);
-                memcpy(bp->data, bbp->data, total * sfmt->bytes_per_frame);
-                bp->count = total;
+                       bp->data,
+                       bp->count * sfmt->bytes_per_frame);
+                memcpy(bp->data,
+                       bbp->data + bp->count * sfmt->channels_per_frame,
+                       bbp->count * sfmt->bytes_per_frame);
+                bp->count = bbp->count;
             }
         }
         if (bp->count >= 2 * LPC_ORDER)
