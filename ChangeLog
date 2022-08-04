@@ -1,12 +1,24 @@
-2022-07-13  nu774 <honeycomb77@gmail.com>
+2022-08-04  nu774 <honeycomb77@gmail.com>
 
   * bump [HEAD -> master]
+
+  * fdk-aac.vcxproj: support vs2022
+
+  * extrapolater: don't return more samples than required
+
+  * wav/caf parser: add format checks
+
+2022-07-13  nu774 <honeycomb77@gmail.com>
+
+  * update ChangeLog [origin/master]
+
+  * bump [v1.0.3]
 
   * wav/caf parser: ensure fmt/desc chunk
 
 2021-11-15  nu774 <honeycomb77@gmail.com>
 
-  * vcxproj: support Visual Studio 2022 [origin/master]
+  * vcxproj: support Visual Studio 2022
 
 2021-04-23  nu774 <honeycomb77@gmail.com>
 
