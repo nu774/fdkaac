@@ -60,6 +60,8 @@ int pcm_skip(pcm_io_context_t *io, int64_t count)
 
     if (count == 0 || pcm_seek(io, count, SEEK_CUR) >= 0)
         return 0;
+    if (count < 0)
+        return -1;
     do {
         if ((rc = vp->read(io->cookie, buff, count > 8192 ? 8192 : count)) > 0)
             count -= rc;

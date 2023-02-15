@@ -105,10 +105,14 @@ int caf_info(caf_reader_t *reader, int64_t chunk_size)
 {
     char *buf, *key, *val, *end;
     size_t len;
+    int n;
 
-    if (chunk_size < 4 || (buf = malloc(chunk_size)) == 0)
+    if (chunk_size < 4 || (buf = malloc(chunk_size+1)) == 0)
         return -1;
-    pcm_read(&reader->io, buf, chunk_size);
+    n = pcm_read(&reader->io, buf, chunk_size);
+    if (n != chunk_size)
+        return -1;
+    buf[n] = 0;
     key = buf + 4;
     end = buf + chunk_size;
     do {
