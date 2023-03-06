@@ -1,0 +1,47 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install libfdk-aac
+        run: |
+          sudo apt install libfdk-aac-dev
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Build
+        run: |
+          autoreconf -fiv
+          ./configure
+          make
+
+  mingw-cross:
+    strategy:
+      matrix:
+        arch: [i686, x86_64]
+        include:
+          - arch: i686
+            os: mingw32
+          - arch: x86_64
+            os: mingw64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install cross compiler
+        run: |
+          ARCH=${{ matrix.arch }}
+          sudo apt-get install g++-mingw-w64-${ARCH//_/-}
+      - name: Install libfdk-aac binary from repo.msys.org
+        run: |
+          wget https://repo.msys2.org/mingw/${{ matrix.os }}/${{ matrix.os }}.db.tar.zst
+          DESCFILE=$(tar xvf ${{ matrix.os }}.db.tar.zst --wildcards '*-fdk-aac*/desc')
+          PKGFILE=$(sed -n '/%FILENAME%/{n;p;q}' $DESCFILE)
+          wget https://repo.msys2.org/mingw/${{ matrix.os }}/${PKGFILE}
+          sudo tar xvf ${PKGFILE} -C /usr/${{ matrix.arch }}-w64-mingw32 --strip-component=1
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build
+        run: |
+          autoreconf -fiv
+          ./configure --host=${{ matrix.arch }}-w64-mingw32
+          make
