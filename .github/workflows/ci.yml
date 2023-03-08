@@ -3,7 +3,10 @@ on: [push, pull_request]
 
 jobs:
   linux:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: [20.04, 22.04]
+    runs-on: ubuntu-${{ matrix.version }}
     steps:
       - name: Install libfdk-aac
         run: |
@@ -15,6 +18,10 @@ jobs:
           autoreconf -fiv
           ./configure
           make
+          sudo make install
+      - name: Test
+        run: |
+          fdkaac -b 128 -R -o /dev/null /dev/null
 
   mingw-cross:
     strategy:
@@ -43,5 +50,6 @@ jobs:
       - name: Build
         run: |
           autoreconf -fiv
-          ./configure --host=${{ matrix.arch }}-w64-mingw32
+          ./configure --host=${{ matrix.arch }}-w64-mingw32 --prefix=/usr/${{ matrix.arch }}-w64-mingw32
           make
+          sudo make install
