@@ -20,3 +20,11 @@ src/.deps/
 src/.dirstamp
 stamp-h1
 fdkaac
+.vscode
+fdk-aac
+MSVC/Release
+MSVC/Debug
+MSVC/x64/Release
+MSVC/x64/Debug
+MSVC/fdk-aac
+MSVC/*.vcxproj.user
