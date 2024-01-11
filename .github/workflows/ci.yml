@@ -17,7 +17,7 @@ jobs:
         run: |
           autoreconf -fiv
           ./configure
-          make
+          make -j2
           sudo make install
       - name: Test
         run: |
@@ -51,7 +51,7 @@ jobs:
         run: |
           autoreconf -fiv
           ./configure --host=${{ matrix.arch }}-w64-mingw32 --prefix=/usr/${{ matrix.arch }}-w64-mingw32
-          make
+          make -j2
           sudo make install
 
   macos:
@@ -67,7 +67,7 @@ jobs:
         run: |
           autoreconf -fiv
           ./configure
-          make
+          make -j3
           make install
       - name: Test
         run: |
@@ -102,7 +102,7 @@ jobs:
         run: |
           autoreconf -fiv
           ./configure
-          make
+          make -j2
           make install
       - name: Test
         run: |
