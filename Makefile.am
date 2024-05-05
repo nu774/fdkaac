@@ -22,8 +22,10 @@ fdkaac_SOURCES = \
 
 dist_man_MANS = man/fdkaac.1
 
+fdkaac_CFLAGS = @CFLAGS@ @FDK_AAC_CFLAGS@
+
 fdkaac_LDADD = \
-    @LIBICONV@ @CHARSET_LIB@ -lfdk-aac -lm
+    @LIBICONV@ @CHARSET_LIB@ @FDK_AAC_LIBS@ -lm
 
 .rc.o:
 	$(RC) $< -o $@
