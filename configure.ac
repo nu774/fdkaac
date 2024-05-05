@@ -16,8 +16,7 @@ AC_CHECK_TOOL(RC, windres,)
 
 AC_CHECK_HEADERS([sys/time.h])
 AC_CHECK_HEADERS([libcharset.h langinfo.h endian.h byteswap.h])
-AC_CHECK_HEADERS([fdk-aac/aacenc_lib.h], ,
-                 AC_MSG_ERROR([libfdk-aac is required]))
+PKG_CHECK_MODULES([FDK_AAC],[fdk-aac])
 
 AC_C_INLINE
 AC_C_BIGENDIAN
