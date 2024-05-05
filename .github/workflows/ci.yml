@@ -50,7 +50,7 @@ jobs:
       - name: Build
         run: |
           autoreconf -fiv
-          ./configure --host=${{ matrix.arch }}-w64-mingw32 --prefix=/usr/${{ matrix.arch }}-w64-mingw32
+          PKG_CONFIG_LIBPATH=/usr/${{ matrix.arch }}-w64-mingw32/lib/pkgconfig ./configure --host=${{ matrix.arch }}-w64-mingw32 --prefix=/usr/${{ matrix.arch }}-w64-mingw32
           make -j2
           sudo make install
 
