@@ -68,7 +68,7 @@ jobs:
           autoreconf -fiv
           ./configure
           make -j3
-          make install
+          sudo make install
       - name: Test
         run: |
           fdkaac -b 128 -R -o /dev/null /dev/null
