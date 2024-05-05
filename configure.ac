@@ -6,6 +6,7 @@ changequote([,])dnl
 AC_INIT([fdkaac], [XX_VERSION], [honeycomb77@gmail.com])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([.])
 
 AM_INIT_AUTOMAKE
 
