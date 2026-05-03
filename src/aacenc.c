@@ -158,6 +158,11 @@ int aacenc_channel_mode(const pcm_sample_description_t *format)
     case 0xff:  return MODE_1_2_2_2_1;
     case 0x63f: return MODE_7_1_REAR_SURROUND;
 #endif
+#if AACENCODER_LIB_VL0 > 3
+    case 0x13f: return MODE_6_1;
+    case 0x503f: return MODE_7_1_TOP_FRONT;
+    case 0x560f: return MODE_7_1_TOP_FRONT;
+#endif
     }
     return 0;
 }
