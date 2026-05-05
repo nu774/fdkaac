@@ -5,7 +5,7 @@ jobs:
   linux:
     strategy:
       matrix:
-        version: [20.04, 22.04]
+        version: [ latest ]
     runs-on: ubuntu-${{ matrix.version }}
     steps:
       - name: Install libfdk-aac
