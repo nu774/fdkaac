@@ -26,10 +26,8 @@ jobs:
   mingw-cross:
     strategy:
       matrix:
-        arch: [i686, x86_64]
+        arch: [x86_64]
         include:
-          - arch: i686
-            os: mingw32
           - arch: x86_64
             os: mingw64
     runs-on: ubuntu-latest
@@ -77,7 +75,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        sys: [ clang32, clang64, mingw32, mingw64, ucrt64 ]
+        sys: [ clang64, mingw64, ucrt64 ]
     defaults:
       run:
         shell: msys2 {0}
