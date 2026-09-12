@@ -3,17 +3,45 @@ Prerequiste
 
 To build fdkaac, you need the followings:
 - libfdk-aac (https://github.com/mstorsjo/fdk-aac)
-- GNU autoconf, GNU automake
+- CMake, or GNU autoconf/automake
 
-libfdk-aac is always required, and probably you have to build it yourself.
-Others are required only when you build by configure and make on Unix-like
-enviromnent (including Cygwin or MinGW), and usually you can install them
-through package manager of your system if they are not already present.
+libfdk-aac is always required, and probably you have to build it yourself,
+unless you use CMake with -DFDKAAC_BUILD_FDK_AAC=ON (see below), which
+fetches and builds it for you.
 
-Unix-like environment
----------------------
+CMake (recommended)
+--------------------
 
-You can build and install libfdkaac and fdkaac in the following step.
+This works the same way on Unix-like systems (Linux, macOS, Cygwin, MinGW,
+msys2) and on Windows with MSVC or clang-cl.
+
+1) extract the source, and cd to the source directory
+2) cmake -S . -B build
+3) cmake --build build -j
+4) sudo cmake --install build
+
+By default, libfdk-aac is located via pkg-config, so it (and pkg-config
+itself) must be installed first -- e.g. `apt install libfdk-aac-dev` on
+Debian/Ubuntu, or `brew install fdk-aac pkg-config` on macOS.
+
+If you don't want to install libfdk-aac yourself (e.g. on Windows, or if
+your distro doesn't package it), pass -DFDKAAC_BUILD_FDK_AAC=ON to the
+configure step; this fetches libfdk-aac's source and builds it as a static
+library, which is linked into fdkaac directly:
+
+    cmake -S . -B build -DFDKAAC_BUILD_FDK_AAC=ON
+
+On Windows, run the above from a "Developer Command Prompt/PowerShell for
+Visual Studio" (for MSVC) or any shell with clang-cl in PATH, and add
+`-G Ninja` (or another generator of your choice) as needed.
+
+autotools (Unix-like environment)
+----------------------------------
+
+Kept around mainly because some distros (e.g. Debian/Ubuntu) package and
+build fdkaac this way.
+
+You can build and install libfdk-aac and fdkaac in the following steps.
 
 1) extract the source, and cd to the source directory
 2) autoreconf -i
@@ -24,8 +52,3 @@ You can build and install libfdkaac and fdkaac in the following step.
 Depending on your requirements, you might want to add some extra arguments to
 configure script.
 You have to install libfdk-aac first, and do the same for fdkaac.
-
-Windows, MSVC
--------------
-
-Extract libfdk-aac under fdkaac directory, and open MSVC/fdkaac.sln.
