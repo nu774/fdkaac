@@ -9,6 +9,8 @@ string(REGEX REPLACE ".*\"([0-9]+\\.[0-9]+\\.[0-9]+)\".*" "\\1"
 
 project(fdkaac VERSION ${FDKAAC_VERSION} LANGUAGES C)
 
+include(GNUInstallDirs)
+
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED OFF)
 
@@ -207,5 +209,5 @@ if(FDKAAC_BUILD_FDK_AAC)
     set_target_properties(fdkaac PROPERTIES LINKER_LANGUAGE CXX)
 endif()
 
-install(TARGETS fdkaac RUNTIME DESTINATION bin)
-install(FILES man/fdkaac.1 DESTINATION share/man/man1)
+install(TARGETS fdkaac RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES man/fdkaac.1 DESTINATION ${CMAKE_INSTALL_MANDIR}/man1)
