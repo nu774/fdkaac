@@ -30,7 +30,15 @@
 typedef struct m4af_sample_entry_t {
     uint32_t size;
     uint32_t delta;
+    uint32_t sample_group;
+    uint8_t is_sync;
 } m4af_sample_entry_t;
+
+typedef struct m4af_sample_group_t {
+    uint32_t grouping_type;
+    uint8_t *payload;
+    uint32_t size;
+} m4af_sample_group_t;
 
 typedef struct m4af_chunk_entry_t {
     int64_t offset;
@@ -67,6 +75,12 @@ typedef struct m4af_track_t {
     m4af_sample_entry_t *sample_table;
     uint32_t num_samples;
     uint32_t sample_table_capacity;
+    uint32_t num_sync_samples;
+
+    m4af_sample_group_t *sample_groups;
+    uint32_t num_sample_groups;
+    /* sample group that every sample belongs to, in addition to its own */
+    uint32_t default_sample_group;
 
     m4af_chunk_entry_t *chunk_table;
     uint32_t num_chunks;
@@ -266,8 +280,13 @@ static
 void m4af_clear_track(m4af_ctx_t *ctx, int track_idx)
 {
     m4af_track_t *track = ctx->track + track_idx;
+    uint32_t i;
     if (track->decSpecificInfo)
         m4af_free(track->decSpecificInfo);
+    for (i = 0; i < track->num_sample_groups; ++i)
+        m4af_free(track->sample_groups[i].payload);
+    if (track->sample_groups)
+        m4af_free(track->sample_groups);
     if (track->sample_table)
         m4af_free(track->sample_table);
     if (track->chunk_table)
@@ -339,9 +358,39 @@ void m4af_set_priming_mode(m4af_ctx_t *ctx, int mode)
     ctx->priming_mode = mode;
 }
 
+uint32_t m4af_add_sample_group(m4af_ctx_t *ctx, uint32_t track_idx,
+                               uint32_t grouping_type,
+                               const void *payload, uint32_t size)
+{
+    m4af_track_t *track = &ctx->track[track_idx];
+    m4af_sample_group_t *group;
+    uint8_t *data;
+
+    if (ctx->last_error)
+        return 0;
+    group = m4af_realloc(track->sample_groups,
+                         (track->num_sample_groups + 1) * sizeof(*group));
+    if (group == 0) {
+        ctx->last_error = M4AF_NO_MEMORY;
+        return 0;
+    }
+    track->sample_groups = group;
+    if ((data = m4af_realloc(0, size ? size : 1)) == 0) {
+        ctx->last_error = M4AF_NO_MEMORY;
+        return 0;
+    }
+    memcpy(data, payload, size);
+    group += track->num_sample_groups;
+    group->grouping_type = grouping_type;
+    group->payload = data;
+    group->size = size;
+    return ++track->num_sample_groups;
+}
+
 static
 int m4af_add_sample_entry(m4af_ctx_t *ctx, uint32_t track_idx,
-                          uint32_t size, uint32_t delta)
+                          uint32_t size, uint32_t delta, int is_sync,
+                          uint32_t sample_group)
 {
     m4af_track_t *track = &ctx->track[track_idx];
     m4af_sample_entry_t *entry;
@@ -362,7 +411,11 @@ int m4af_add_sample_entry(m4af_ctx_t *ctx, uint32_t track_idx,
     entry = track->sample_table + track->num_samples;
     entry->size = size;
     entry->delta = delta;
+    entry->sample_group = sample_group;
+    entry->is_sync = !!is_sync;
     ++track->num_samples;
+    if (is_sync)
+        ++track->num_sync_samples;
     return 0;
 }
 
@@ -408,13 +461,24 @@ int m4af_update_chunk_table(m4af_ctx_t *ctx, uint32_t track_idx,
 {
     m4af_track_t *track = &ctx->track[track_idx];
     m4af_chunk_entry_t *entry;
+    m4af_sample_entry_t *sample = track->sample_table + track->num_samples - 1;
     int add_new_chunk = 0;
 
     if (ctx->last_error)
         return -1;
     if (track->num_chunks == 0)
         add_new_chunk = 1;
-    else {
+    else if (track->num_sync_samples < track->num_samples) {
+        /*
+         * Sparse sync samples (USAC): start a new chunk at each sync sample
+         * following non-sync ones, so that every chunk begins with a sync
+         * sample. Duration limit is only a safety net for long intervals.
+         */
+        entry = &track->chunk_table[track->num_chunks - 1];
+        if ((sample->is_sync && !sample[-1].is_sync) ||
+            entry->duration + delta > track->timescale * 5)
+            add_new_chunk = 1;
+    } else {
         entry = &track->chunk_table[track->num_chunks - 1];
         if (entry->duration + delta > track->timescale / 2)
             add_new_chunk = 1;
@@ -471,20 +535,32 @@ int m4af_append_sample_to_chunk(m4af_ctx_t *ctx, uint32_t track_idx,
     return 0;
 }
 
-int m4af_write_sample(m4af_ctx_t *ctx, uint32_t track_idx, const void *data,
-                      uint32_t size, uint32_t duration)
+int m4af_write_sample_ex(m4af_ctx_t *ctx, uint32_t track_idx,
+                         const void *data, uint32_t size, uint32_t duration,
+                         int is_sync, uint32_t sample_group_index)
 {
     m4af_track_t *track = &ctx->track[track_idx];
+    if (ctx->last_error)
+        return ctx->last_error;
+    if (sample_group_index > track->num_sample_groups)
+        return ctx->last_error = M4AF_FORMAT_ERROR;
     if (track->frame_duration)
         duration = track->frame_duration;
     if (size > track->bufferSizeDB)
         track->bufferSizeDB = size;
     track->duration += duration;
-    m4af_add_sample_entry(ctx, track_idx, size, duration);
+    m4af_add_sample_entry(ctx, track_idx, size, duration, is_sync,
+                          sample_group_index);
     m4af_update_chunk_table(ctx, track_idx, size, duration);
     m4af_update_max_bitrate(ctx, track_idx);
     m4af_append_sample_to_chunk(ctx, track_idx, data, size);
     return ctx->last_error;
+}
+
+int m4af_write_sample(m4af_ctx_t *ctx, uint32_t track_idx, const void *data,
+                      uint32_t size, uint32_t duration)
+{
+    return m4af_write_sample_ex(ctx, track_idx, data, size, duration, 1, 0);
 }
 
 static
@@ -889,33 +965,137 @@ void m4af_write_stsd_box(m4af_ctx_t *ctx, uint32_t track_idx)
 }
 
 static
-void m4af_write_sbgp_box(m4af_ctx_t *ctx, uint32_t track_idx)
+uint32_t m4af_get_group_description_index(m4af_track_t *track,
+                                          uint32_t grouping_type,
+                                          uint32_t sample_group)
 {
-    m4af_track_t *track = &ctx->track[track_idx];
-    m4af_write(ctx,
-               "\0\0\0\034"  /* size: 28                */
-               "sbgp"        /* type                    */
-               "\0"          /* version                 */
-               "\0\0\0"      /* flags                   */
-               "roll"        /* grouping_type           */
-               "\0\0\0\001"  /* entry_count: 1          */
-               , 20);
-    m4af_write32(ctx, track->num_samples);
-    m4af_write32(ctx, 1);    /* group_description_index */
+    uint32_t i, n = 0;
+    if (sample_group == 0 ||
+        track->sample_groups[sample_group - 1].grouping_type != grouping_type)
+        return 0;
+    for (i = 0; i < sample_group; ++i)
+        if (track->sample_groups[i].grouping_type == grouping_type)
+            ++n;
+    return n;
 }
 
 static
-void m4af_write_sgpd_box(m4af_ctx_t *ctx, uint32_t track_idx)
+void m4af_write_sbgp_box(m4af_ctx_t *ctx, uint32_t track_idx,
+                         uint32_t grouping_type)
 {
+    m4af_track_t *track = &ctx->track[track_idx];
+    m4af_sample_entry_t *index = track->sample_table;
+    uint32_t i, prev = 0, entry_count = 0, sample_count = 0;
+    uint32_t default_index =
+        m4af_get_group_description_index(track, grouping_type,
+                                         track->default_sample_group);
+    int64_t pos = m4af_tell(ctx);
     m4af_write(ctx,
-               "\0\0\0\026"  /* size: 22           */
-               "sgpd"        /* type               */
-               "\0"          /* version            */
-               "\0\0\0"      /* flags              */
-               "roll"        /* grouping_type      */
-               "\0\0\0\001"  /* entry_count: 1     */
-               "\377\377"    /* payload_data: -1   */
-               , 22);
+               "\0\0\0\0"  /* size                    */
+               "sbgp"      /* type                    */
+               "\0"        /* version                 */
+               "\0\0\0"    /* flags                   */
+               , 12);
+    m4af_write32(ctx, grouping_type);
+    m4af_write32(ctx, 0);  /* entry_count             */
+
+    for (i = 0; i < track->num_samples; ++i, ++index) {
+        uint32_t cur =
+            m4af_get_group_description_index(track, grouping_type,
+                                             index->sample_group);
+        if (cur == 0)
+            cur = default_index;
+        if (sample_count && cur != prev) {
+            ++entry_count;
+            m4af_write32(ctx, sample_count);
+            m4af_write32(ctx, prev); /* group_description_index */
+            sample_count = 0;
+        }
+        prev = cur;
+        ++sample_count;
+    }
+    if (sample_count) {
+        ++entry_count;
+        m4af_write32(ctx, sample_count);
+        m4af_write32(ctx, prev);
+    }
+    m4af_write32_at(ctx, pos + 16, entry_count);
+    m4af_update_box_size(ctx, pos);
+}
+
+static
+void m4af_write_sgpd_box(m4af_ctx_t *ctx, uint32_t track_idx,
+                         uint32_t grouping_type)
+{
+    m4af_track_t *track = &ctx->track[track_idx];
+    m4af_sample_group_t *group = track->sample_groups;
+    uint32_t i, entry_count = 0, default_length = 0;
+    int64_t pos = m4af_tell(ctx);
+
+    for (i = 0; i < track->num_sample_groups; ++i, ++group) {
+        if (group->grouping_type != grouping_type)
+            continue;
+        if (entry_count++ == 0)
+            default_length = group->size;
+        else if (group->size != default_length)
+            default_length = 0;
+    }
+    m4af_write(ctx,
+               "\0\0\0\0"  /* size                    */
+               "sgpd"      /* type                    */
+               "\001"      /* version: 1              */
+               "\0\0\0"    /* flags                   */
+               , 12);
+    m4af_write32(ctx, grouping_type);
+    m4af_write32(ctx, default_length);
+    m4af_write32(ctx, entry_count);
+    group = track->sample_groups;
+    for (i = 0; i < track->num_sample_groups; ++i, ++group) {
+        if (group->grouping_type != grouping_type)
+            continue;
+        if (!default_length)
+            m4af_write32(ctx, group->size); /* description_length */
+        m4af_write(ctx, group->payload, group->size);
+    }
+    m4af_update_box_size(ctx, pos);
+}
+
+static
+void m4af_write_sample_group_boxes(m4af_ctx_t *ctx, uint32_t track_idx)
+{
+    m4af_track_t *track = &ctx->track[track_idx];
+    uint32_t i, j;
+
+    for (i = 0; i < track->num_sample_groups; ++i) {
+        uint32_t grouping_type = track->sample_groups[i].grouping_type;
+        for (j = 0; j < i; ++j)
+            if (track->sample_groups[j].grouping_type == grouping_type)
+                break;
+        if (j < i)
+            continue; /* already written */
+        m4af_write_sbgp_box(ctx, track_idx, grouping_type);
+        m4af_write_sgpd_box(ctx, track_idx, grouping_type);
+    }
+}
+
+static
+void m4af_write_stss_box(m4af_ctx_t *ctx, uint32_t track_idx)
+{
+    m4af_track_t *track = &ctx->track[track_idx];
+    m4af_sample_entry_t *index = track->sample_table;
+    uint32_t i;
+    int64_t pos = m4af_tell(ctx);
+    m4af_write(ctx,
+               "\0\0\0\0"  /* size        */
+               "stss"      /* type        */
+               "\0"        /* version     */
+               "\0\0\0"    /* flags       */
+               , 12);
+    m4af_write32(ctx, track->num_sync_samples);
+    for (i = 0; i < track->num_samples; ++i, ++index)
+        if (index->is_sync)
+            m4af_write32(ctx, i + 1);
+    m4af_update_box_size(ctx, pos);
 }
 
 static
@@ -925,12 +1105,10 @@ void m4af_write_stbl_box(m4af_ctx_t *ctx, uint32_t track_idx)
     int64_t pos = m4af_tell(ctx);
     m4af_write(ctx, "\0\0\0\0stbl", 8);
     m4af_write_stsd_box(ctx, track_idx);
-    if ((ctx->priming_mode & M4AF_PRIMING_MODE_EDTS) &&
-        (track->encoder_delay || track->padding)) {
-        m4af_write_sbgp_box(ctx, track_idx);
-        m4af_write_sgpd_box(ctx, track_idx);
-    }
+    m4af_write_sample_group_boxes(ctx, track_idx);
     m4af_write_stts_box(ctx, track_idx);
+    if (track->num_sync_samples < track->num_samples)
+        m4af_write_stss_box(ctx, track_idx);
     m4af_write_stsc_box(ctx, track_idx);
     m4af_write_stsz_box(ctx, track_idx);
     m4af_write_stco_box(ctx, track_idx);
@@ -1425,6 +1603,11 @@ int m4af_finalize(m4af_ctx_t *ctx, int optimize)
                 8.0 * track_size * track->timescale / track->duration + .5;
         }
         m4af_flush_chunk(ctx, i);
+        if ((ctx->priming_mode & M4AF_PRIMING_MODE_EDTS) &&
+            (track->encoder_delay || track->padding))
+            track->default_sample_group =
+                m4af_add_sample_group(ctx, i, M4AF_FOURCC('r','o','l','l'),
+                                      "\377\377", 2); /* roll_distance: -1 */
     }
     track = ctx->track;
     if ((ctx->priming_mode & M4AF_PRIMING_MODE_ITUNSMPB) &&

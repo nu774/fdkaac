@@ -86,6 +86,14 @@ void m4af_teardown(m4af_ctx_t **ctx);
 int m4af_write_sample(m4af_ctx_t *ctx, uint32_t track_idx, const void *data,
                       uint32_t size, uint32_t duration);
 
+uint32_t m4af_add_sample_group(m4af_ctx_t *ctx, uint32_t track_idx,
+                               uint32_t grouping_type,
+                               const void *payload, uint32_t size);
+
+int m4af_write_sample_ex(m4af_ctx_t *ctx, uint32_t track_idx,
+                         const void *data, uint32_t size, uint32_t duration,
+                         int is_sync, uint32_t sample_group_index);
+
 int m4af_set_decoder_specific_info(m4af_ctx_t *ctx, uint32_t track_idx,
                                    uint8_t *data, uint32_t size);
 
