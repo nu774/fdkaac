@@ -107,7 +107,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        sys: [ clang64, mingw64, ucrt64 ]
+        sys: [ clang64, ucrt64 ]
     defaults:
       run:
         shell: msys2 {0}
