@@ -18,10 +18,13 @@
 #ifndef _V_LPC_H_
 #define _V_LPC_H_
 
-/* simple linear scale LPC code */
-extern float vorbis_lpc_from_data(short *data,float *lpc,int n,int m,int stride);
+/* INT_PCM and SAMPLE_BITS are defined here. */
+#include <fdk-aac/machine_type.h>
 
-extern void vorbis_lpc_predict(float *coeff,short *prime,int m,
-                               short *data,long n,int stride);
+/* simple linear scale LPC code */
+extern float vorbis_lpc_from_data(INT_PCM *data,float *lpc,int n,int m,int stride);
+
+extern void vorbis_lpc_predict(float *coeff,INT_PCM *prime,int m,
+                               INT_PCM *data,long n,int stride);
 
 #endif

@@ -14,7 +14,6 @@
 #include <math.h>
 #include <assert.h>
 #include "pcm_reader.h"
-#include "lpc.h"
 
 typedef struct buffer_t {
     void *data;

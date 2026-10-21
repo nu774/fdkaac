@@ -14,6 +14,9 @@
 #include <fdk-aac/aacenc_lib.h>
 #include "pcm_reader.h"
 
+/* Converts the native converter's int32/float output to INT_PCM. Despite
+ * the historical name, this handles both 16- and 32-bit SAMPLE_BITS. */
+
 typedef struct pcm_sint16_converter_t {
     pcm_reader_vtbl_t *vtbl;
     pcm_reader_t *src;

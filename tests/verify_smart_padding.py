@@ -34,15 +34,28 @@ directly against libfdk-aac's own decoder (aacDecoder_* in
 aacdecoder_lib.h) -- see the session notes in the commit that added
 this script if you need to redo that.
 
-A separate, pre-existing wrinkle for HE-AAC/HE-AACv2 (profiles 5/29):
-ffmpeg's own AAC+SBR decoder does not fully honor the delay this tool
-signals via iTunSMPB/edts -- it under-trims by a few thousand samples,
-consistently, for both the old (already-shipped) and new discard
-strategy alike. This is a ffmpeg-side decoding quirk, not an fdkaac
-bug (confirmed by comparing against the pre-existing, already-verified
-behavior), so this script does not assert lag==0 for those two
-profiles -- it just does a wider search and still checks for a splice
-glitch at whatever lag it finds.
+A separate wrinkle for HE-AAC/HE-AACv2 (profiles 5/29): ffmpeg's
+AAC+SBR decoder does not fully honor the default iTunes-compatible
+delay.  fdkaac deliberately signals 481 core samples (962 output
+samples) less than the full SBR delay by default, so ffmpeg's decoded
+output contains 962 extra samples before the real audio.  With
+--include-sbr-delay, which signals the full FDK delay, ffmpeg trims
+the same file sample-accurately.  The audio itself is fine in both
+cases; only the signaled delay differs.
+
+This script therefore exercises those two profiles twice:
+
+  * default iTunSMPB: accept lag 0 (if a future ffmpeg learns to scale
+    the SBR delay) or the known ~962-sample offset, and still require
+    a clean splice at the detected boundary;
+  * --include-sbr-delay: require lag 0.
+
+Only the default iTunSMPB container path is exercised here (no -G
+option).  ffmpeg's edit-list (edts) path is not covered: for SBR it
+uses the edit-list media timescale as skip_samples without rescaling
+to the doubled decoder output rate, so -G 1/-G 2 still leave the same
+offset.  AAC-LC handles edts correctly, but that container path is
+outside this script's scope.
 
 Usage:
     python3 tests/verify_smart_padding.py [--fdkaac PATH]
@@ -74,9 +87,18 @@ PROFILES = [
 # frame length per profile, needed to size the edge-case test lengths
 FRAME_LENGTH = {2: 1024, 5: 2048, 29: 2048, 23: 512, 39: 512}
 
-# ffmpeg's own AAC+SBR decoder under-trims these two by a few thousand
-# samples relative to the signaled delay -- see module docstring.
-SBR_QUIRKY_PROFILES = {5, 29}
+# HE-AAC/HE-AACv2 (dual-rate SBR).  fdkaac's default signaling omits
+# the extra SBR delay of 481 core samples (962 output samples), which
+# ffmpeg then leaves as a head offset.  --include-sbr-delay signals the
+# full delay instead.  See the module docstring.
+SBR_PROFILES = {5, 29}
+SBR_DEFAULT_LAG = 481 << 1  # 962 output samples for dual-rate SBR
+SBR_LAG_TOLERANCE = 2       # observed offsets are 961 or 962
+
+# Minimum overlap for the alignment search.  Using a shorter segment
+# for short inputs lets the one-frame SBR case find the ~962-sample
+# offset; the old fixed 2000-sample window could only search 48 lags.
+MIN_ALIGN_OVERLAP = 512
 
 
 def gen_noise(n, seed, channels=1):
@@ -131,17 +153,28 @@ def decode(path, channels):
     return data
 
 
-def find_head_lag(decoded, orig_mono, maxlag=6000, window=2000):
-    """Cross-correlate to find where orig_mono[0:window] best matches
-    within decoded[]. Returns (lag, correlation)."""
-    window = min(window, len(orig_mono))
+def find_head_lag(decoded, orig_mono, maxlag=6000, window=2000,
+                  min_overlap=MIN_ALIGN_OVERLAP):
+    """Cross-correlate to find where orig_mono best matches within
+    decoded[]. Returns (lag, correlation).
+
+    For short inputs, compare only the available overlap instead of
+    refusing to search lags beyond len(decoded) - window.  Without
+    that, a 2048-sample HE-AAC decode can only search 48 lags and
+    cannot see the expected ~962-sample SBR offset."""
+    min_overlap = min(min_overlap, len(decoded), len(orig_mono))
     best_lag, best_score = 0, -1.0
-    ref = orig_mono[:window]
-    ref_norm = np.linalg.norm(ref)
-    for lag in range(0, min(maxlag, max(0, len(decoded) - window)) + 1):
+    max_lag = min(maxlag, max(0, len(decoded) - min_overlap))
+    for lag in range(0, max_lag + 1):
         seg = decoded[lag:lag + window]
+        overlap = min(len(seg), len(orig_mono))
+        if overlap < min_overlap:
+            continue
+        seg = seg[:overlap]
+        ref = orig_mono[:overlap]
         seg_norm = np.linalg.norm(seg)
-        if seg_norm < 1:
+        ref_norm = np.linalg.norm(ref)
+        if seg_norm < 1 or ref_norm < 1:
             continue
         score = np.dot(seg, ref) / (seg_norm * ref_norm + 1e-9)
         if score > best_score:
@@ -170,7 +203,8 @@ class Failure(Exception):
 
 
 def check_case(fdkaac, tmpdir, profile, extra_args, bitrate, channels,
-               n_frames_desc, n, seed, glitch_ratio_threshold=0.6):
+               n_frames_desc, n, seed, allowed_lags=(0,), lag_tolerance=0,
+               glitch_ratio_threshold=0.6):
     src = gen_noise(n, seed, channels)
     src_mono = src[:, 0].astype(np.float64)
     src_path = os.path.join(tmpdir, "src.raw")
@@ -195,24 +229,28 @@ def check_case(fdkaac, tmpdir, profile, extra_args, bitrate, channels,
         # confirm it decodes without crashing (already done above).
         return
 
-    quirky = profile in SBR_QUIRKY_PROFILES
+    is_sbr = profile in SBR_PROFILES
     lag, corr = find_head_lag(decoded, src_mono,
-                              maxlag=10000 if quirky else 6000)
+                              maxlag=10000 if is_sbr else 6000)
     if corr < 0.5:
         raise Failure("no confident alignment found at all (best "
                       "corr=%.3f at lag=%d)" % (corr, lag))
-    if not quirky and lag != 0:
-        raise Failure("head misaligned: expected lag=0, found lag=%d "
-                      "(corr=%.3f)" % (lag, corr))
+    if not any(abs(lag - expected) <= lag_tolerance
+               for expected in allowed_lags):
+        expected_desc = str(list(allowed_lags))
+        if lag_tolerance:
+            expected_desc += " (+/-%d)" % lag_tolerance
+        raise Failure("head misaligned: expected lag in %s, found lag=%d "
+                      "(corr=%.3f)" % (expected_desc, lag, corr))
 
     # SBR's own lossy reconstruction has a noticeably higher per-window
-    # noise floor even in known-good output (observed up to ~0.7-0.8 in
+    # noise floor even in known-good output (observed up to ~0.8 in
     # an isolated window during manual verification), so it needs a
     # looser threshold than the non-SBR profiles. The splice-type bugs
     # this check exists to catch look nothing like "one noisy window" --
     # they showed near-total decorrelation (ratio ~= 1.0) across several
     # *consecutive* windows, which either threshold still catches.
-    threshold = 0.9 if quirky else glitch_ratio_threshold
+    threshold = 0.9 if is_sbr else glitch_ratio_threshold
     ratios = local_error_ratios(decoded, src_mono, lag)
     bad = [r for r in ratios if r > threshold]
     if bad:
@@ -265,25 +303,43 @@ def main():
             ("short tail (< 2*LPC_ORDER)", flen * 4 + 20),
             ("general/long", flen * 17 + 777),
         ]
+        if profile in SBR_PROFILES:
+            variants = [
+                ("default", extra_args,
+                 (0, SBR_DEFAULT_LAG), SBR_LAG_TOLERANCE),
+                ("include-sbr-delay",
+                 extra_args + ["--include-sbr-delay"], (0,), 0),
+            ]
+        else:
+            variants = [(None, extra_args, (0,), 0)]
+
         for desc, n in cases:
-            tmpdir = tempfile.mkdtemp(prefix="fdkaac-test-")
-            label = "profile=%d %s n=%d" % (profile, desc, n)
-            try:
-                check_case(fdkaac, tmpdir, profile, extra_args, bitrate,
-                          channels, desc, n, seed=1000 + n)
-                print("PASS: %s" % label)
-                passed += 1
-            except Failure as e:
-                print("FAIL: %s -- %s" % (label, e))
-                failures.append(label)
-            except RuntimeError as e:
-                print("ERROR: %s -- %s" % (label, e))
-                failures.append(label)
-            finally:
-                if args.keep_tmp and failures and failures[-1] == label:
-                    print("  (kept temp dir: %s)" % tmpdir)
+            for (variant_name, variant_args,
+                 allowed_lags, lag_tolerance) in variants:
+                tmpdir = tempfile.mkdtemp(prefix="fdkaac-test-")
+                if variant_name:
+                    label = "profile=%d [%s] %s n=%d" % (
+                        profile, variant_name, desc, n)
                 else:
-                    shutil.rmtree(tmpdir, ignore_errors=True)
+                    label = "profile=%d %s n=%d" % (profile, desc, n)
+                try:
+                    check_case(fdkaac, tmpdir, profile, variant_args, bitrate,
+                              channels, desc, n, seed=1000 + n,
+                              allowed_lags=allowed_lags,
+                              lag_tolerance=lag_tolerance)
+                    print("PASS: %s" % label)
+                    passed += 1
+                except Failure as e:
+                    print("FAIL: %s -- %s" % (label, e))
+                    failures.append(label)
+                except RuntimeError as e:
+                    print("ERROR: %s -- %s" % (label, e))
+                    failures.append(label)
+                finally:
+                    if args.keep_tmp and failures and failures[-1] == label:
+                        print("  (kept temp dir: %s)" % tmpdir)
+                    else:
+                        shutil.rmtree(tmpdir, ignore_errors=True)
 
     print()
     print("%d passed, %d failed" % (passed, len(failures)))

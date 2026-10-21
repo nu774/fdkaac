@@ -14,7 +14,10 @@
 #include "pcm_reader.h"
 #include "lpc.h"
 
-typedef int16_t sample_t;
+/* The extrapolater sits directly after pcm_sint16_converter and works on
+ * the same sample representation libfdk-aac expects, whatever width the
+ * library was built with. */
+typedef INT_PCM sample_t;
 
 /* A plain frame buffer, sized once at open() time. */
 typedef struct pcmbuf_t {
@@ -300,6 +303,8 @@ pcm_reader_t *extrapolater_open(pcm_reader_t *reader, unsigned pad_frames)
     extrapolater_t *self = 0;
     const pcm_sample_description_t *sfmt = pcm_get_format(reader);
     unsigned bpf = sfmt->bytes_per_frame;
+
+    assert(bpf == sizeof(sample_t) * sfmt->channels_per_frame);
 
     if ((self = calloc(1, sizeof(extrapolater_t))) == 0)
         return 0;

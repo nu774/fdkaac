@@ -57,13 +57,19 @@ Carsten Bormann
 #include "lpc.h"
 #include "lpcm.h"
 
+/* Samples are normalized to [-1, 1) before the LPC math, as the original
+   16-bit code did with a hard-coded 32768. Derive the scale from the
+   INT_PCM width libfdk-aac was built with instead. */
+#define PCM_SCALE    ((double)((UINT64)1 << (SAMPLE_BITS - 1)))
+#define PCM_SCALE_SQ (PCM_SCALE * PCM_SCALE)
+
 /* Autocorrelation LPC coeff generation algorithm invented by
    N. Levinson in 1947, modified by J. Durbin in 1959. */
 
 /* Input : n elements of time doamin data
    Output: m lpc coefficients, excitation energy */
 
-float vorbis_lpc_from_data(short *data,float *lpci,int n,int m,int stride){
+float vorbis_lpc_from_data(INT_PCM *data,float *lpci,int n,int m,int stride){
   double *aut=malloc(sizeof(*aut)*(m+1));
   double *lpc=malloc(sizeof(*lpc)*(m));
   double error;
@@ -74,7 +80,7 @@ float vorbis_lpc_from_data(short *data,float *lpci,int n,int m,int stride){
   j=m+1;
   while(j--){
     double d=0; /* double needed for accumulator depth */
-    for(i=j;i<n;i++)d+=(double)data[i*stride]*data[(i-j)*stride]/1073741824.0;
+    for(i=j;i<n;i++)d+=(double)data[i*stride]*data[(i-j)*stride]/PCM_SCALE_SQ;
     aut[j]=d;
   }
 
@@ -137,23 +143,23 @@ float vorbis_lpc_from_data(short *data,float *lpci,int n,int m,int stride){
   return error;
 }
 
-void vorbis_lpc_predict(float *coeff,short *prime,int m,
-                        short *data,long n,int stride){
+void vorbis_lpc_predict(float *coeff,INT_PCM *prime,int m,
+                        INT_PCM *data,long n,int stride){
 
   /* in: coeff[0...m-1] LPC coefficients
          prime[0...m-1] initial values (allocated size of n+m-1)
     out: data[0...n-1] data samples */
 
   long i,j,o,p;
-  float y;
-  float *work=malloc(sizeof(*work)*(m+n));
+  double y;
+  double *work=malloc(sizeof(*work)*(m+n));
 
   if(!prime)
     for(i=0;i<m;i++)
-      work[i]=0.f;
+      work[i]=0.;
   else
     for(i=0;i<m;i++)
-      work[i]=prime[i*stride]/32768.0f;
+      work[i]=prime[i*stride]/PCM_SCALE;
 
   for(i=0;i<n;i++){
     y=0;
@@ -163,7 +169,9 @@ void vorbis_lpc_predict(float *coeff,short *prime,int m,
       y-=work[o++]*coeff[--p];
 
     work[o]=y;
-    data[i*stride]=lrint(pcm_clip(y*32768.0,-32768.0,32767.0));
+    data[i*stride]=(INT_PCM)lrint(pcm_clip(y*PCM_SCALE,
+                                            (double)SAMPLE_MIN,
+                                            (double)SAMPLE_MAX));
   }
   free(work);
 }
